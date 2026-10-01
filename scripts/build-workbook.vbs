@@ -5,18 +5,26 @@ Dim wb
 Dim vbProj
 Dim comp
 Dim fso
+Dim shell
 Dim folder
 Dim file
 Dim codeText
 Dim outPath
 Dim logPath
+Dim artifactsRoot
+Dim dialogWatchCommand
 
 outPath = "C:\dev\STLPackingPerformanceReport\PackingEstimatedVsActualReport.xlsm"
 folder = "C:\dev\STLPackingPerformanceReport\vba"
 logPath = "C:\dev\STLPackingPerformanceReport\build-workbook.log"
+artifactsRoot = "C:\dev\STLPackingPerformanceReport\artifacts"
+dialogWatchCommand = "powershell -NoProfile -ExecutionPolicy Bypass -File ""C:\dev\STLPackingPerformanceReport\scripts\watch-excel-dialogs.ps1"" -OutputPath ""C:\dev\STLPackingPerformanceReport\artifacts\dialog-watch-build.log"" -TimeoutSeconds 180"
 
 Set fso = CreateObject("Scripting.FileSystemObject")
+Set shell = CreateObject("WScript.Shell")
+EnsureFolder artifactsRoot
 WriteLog "Start"
+shell.Run dialogWatchCommand, 0, False
 
 Set xl = CreateObject("Excel.Application")
 If Err.Number <> 0 Then
@@ -170,6 +178,11 @@ Sub DeleteSheetIfPresent(workbookObj, sheetName)
     If Err.Number = 0 Then ws.Delete
     Err.Clear
     On Error GoTo 0
+End Sub
+
+Sub EnsureFolder(folderPath)
+    On Error Resume Next
+    If Not fso.FolderExists(folderPath) Then fso.CreateFolder folderPath
 End Sub
 
 Sub WriteLog(messageText)

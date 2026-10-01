@@ -2,5 +2,9 @@
 *.tmp
 build-workbook.log
 
+artifacts/
 artifacts/builds/
 artifacts/last-build-path.txt
+artifacts/e2e/*.png
+artifacts/e2e/*.csv
+artifacts/e2e/*.log

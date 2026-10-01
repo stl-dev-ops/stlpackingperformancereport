@@ -1,16 +1,22 @@
 Attribute VB_Name = "modReportConfig"
 Option Explicit
 
-Public Const REPORT_VERSION As String = "0.1.0"
+Public Const REPORT_VERSION As String = "0.2.0"
 Public Const REPORT_TITLE As String = "Packing Estimated vs Actual Report"
 
 Public Const SHEET_DASHBOARD As String = "Dashboard"
 Public Const SHEET_CONFIGURATION As String = "Configuration"
 Public Const SHEET_PACKING_DETAIL As String = "Packing Detail"
 Public Const SHEET_QUERY_LOG As String = "Query Log"
+Public Const SHEET_INTERACTION_LOG As String = "Interaction Log"
+Public Const SHEET_TEST_RESULTS As String = "Test Results"
 
 Public Const TABLE_PACKING_DETAIL As String = "tblPackingDetail"
 Public Const TABLE_QUERY_LOG As String = "tblQueryLog"
+Public Const TABLE_INTERACTION_LOG As String = "tblInteractionLog"
+Public Const TABLE_TEST_RESULTS As String = "tblTestResults"
+Public Const TABLE_WORKCENTER_SUMMARY As String = "tblWorkCenterSummary"
+Public Const TABLE_EMPLOYEE_SUMMARY As String = "tblEmployeeSummary"
 
 Public Const NAME_ESTIMATE_DATE_FROM As String = "cfgEstimateDateFrom"
 Public Const NAME_ESTIMATE_DATE_TO As String = "cfgEstimateDateTo"
@@ -28,14 +34,29 @@ Public Const NAME_CONNECTION_TIMEOUT As String = "cfgConnectionTimeout"
 Public Const NAME_STATUS As String = "cfgStatus"
 Public Const NAME_VERSION As String = "cfgWorkbookVersion"
 
+Public Const SHAPE_ESTIMATE_DATES As String = "ppr_btnEstimateDates"
+Public Const SHAPE_DELIVERY_DATES As String = "ppr_btnDeliveryDates"
+Public Const SHAPE_ACTUAL_DATES As String = "ppr_btnActualDates"
+Public Const SHAPE_CUSTOMER_FILTER As String = "ppr_btnCustomerFilter"
+Public Const SHAPE_WORKCENTER_FILTER As String = "ppr_btnWorkCenterFilter"
+Public Const SHAPE_EMPLOYEE_FILTER As String = "ppr_btnEmployeeFilter"
 Public Const SHAPE_REFRESH As String = "ppr_btnRefresh"
+Public Const SHAPE_CLEAR As String = "ppr_btnClear"
 Public Const SHAPE_CONFIG As String = "ppr_btnConfig"
+Public Const SHAPE_DASHBOARD As String = "ppr_btnDashboard"
+Public Const SHAPE_DETAIL As String = "ppr_btnDetail"
+Public Const SHAPE_QUERY_LOG As String = "ppr_btnQueryLog"
 
 Public Const COLOR_BORDER As Long = 11184810
 Public Const COLOR_TEXT_DARK As Long = 2368548
-Public Const COLOR_TITLE_BG As Long = 3416856
-Public Const COLOR_ACTION_BG As Long = 13561798
-Public Const COLOR_ACCENT_BG As Long = 14342874
+Public Const COLOR_TITLE_BG As Long = 2624032
+Public Const COLOR_ACTION_BG As Long = 10395294
+Public Const COLOR_ACCENT_BG As Long = 15790320
+Public Const COLOR_FILTER_BG As Long = 14671839
+Public Const COLOR_PANEL_BG As Long = 15923442
+Public Const COLOR_CARD_BG As Long = 16514555
+Public Const COLOR_ALERT_BG As Long = 13421823
+Public Const COLOR_SUCCESS_BG As Long = 13434828
 
 Public Function WorkbookHasName(ByVal rangeName As String) As Boolean
     On Error Resume Next
@@ -116,6 +137,8 @@ Public Sub SetConfigValue(ByVal rangeName As String, ByVal valueToWrite As Varia
     ElseIf IsDate(valueToWrite) Then
         rng.NumberFormat = "m/d/yyyy"
         rng.Value = CDate(valueToWrite)
+    ElseIf IsEmpty(valueToWrite) Then
+        rng.ClearContents
     Else
         rng.NumberFormat = "General"
         rng.Value = valueToWrite
@@ -138,4 +161,20 @@ End Function
 
 Public Function DatabaseName() As String
     DatabaseName = GetConfigText(NAME_DATABASE_NAME, "sqlb00")
+End Function
+
+Public Function NzText(ByVal someValue As Variant, Optional ByVal defaultValue As String = "") As String
+    If IsError(someValue) Or IsNull(someValue) Or IsEmpty(someValue) Then
+        NzText = defaultValue
+    Else
+        NzText = CStr(someValue)
+    End If
+End Function
+
+Public Function NzNumber(ByVal someValue As Variant, Optional ByVal defaultValue As Double = 0#) As Double
+    If IsError(someValue) Or IsNull(someValue) Or IsEmpty(someValue) Or Not IsNumeric(someValue) Then
+        NzNumber = defaultValue
+    Else
+        NzNumber = CDbl(someValue)
+    End If
 End Function
