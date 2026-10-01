@@ -1,0 +1,6 @@
+~$*.xlsm
+*.tmp
+build-workbook.log
+
+artifacts/builds/
+artifacts/last-build-path.txt
