@@ -162,11 +162,11 @@ Public Sub RefreshDashboardSelectionCaptions()
     lines = "Estimate Date: " & DescribeDateRange(GetConfigDate(NAME_ESTIMATE_DATE_FROM), GetConfigDate(NAME_ESTIMATE_DATE_TO)) & vbCrLf
     lines = lines & "Delivery Date: " & DescribeDateRange(GetConfigDate(NAME_DELIVERY_DATE_FROM), GetConfigDate(NAME_DELIVERY_DATE_TO)) & vbCrLf
     lines = lines & "Actual Work Date: " & DescribeDateRange(GetConfigDate(NAME_ACTUAL_WORK_DATE_FROM), GetConfigDate(NAME_ACTUAL_WORK_DATE_TO)) & vbCrLf
-    lines = lines & "Customer Like: " & DescribeTextFilter(GetConfigText(NAME_CUSTOMER_LIKE)) & vbCrLf
-    lines = lines & "Work Center Like: " & DescribeTextFilter(GetConfigText(NAME_WORK_CENTER_LIKE)) & vbCrLf
-    lines = lines & "Employee Like: " & DescribeTextFilter(GetConfigText(NAME_EMPLOYEE_LIKE))
+    lines = lines & "Customer: " & DescribeTextFilter(GetConfigText(NAME_CUSTOMER_LIKE), "Customers") & vbCrLf
+    lines = lines & "Work Center: " & DescribeTextFilter(GetConfigText(NAME_WORK_CENTER_LIKE), "Work Centers") & vbCrLf
+    lines = lines & "Employee: " & DescribeTextFilter(GetConfigText(NAME_EMPLOYEE_LIKE), "Employees")
 
-    With ws.Range("B26:M29")
+    With ws.Range("B26:O29")
         .MergeCells = True
         .Value = lines
         .WrapText = True
@@ -183,6 +183,9 @@ Public Sub RefreshDashboardSelectionCaptions()
     If ShapeExists(ws, SHAPE_DELIVERY_DATE_TO) Then SetShapeButtonText ws.Shapes(SHAPE_DELIVERY_DATE_TO), "Del To" & vbLf & DescribeSingleDate(GetConfigDate(NAME_DELIVERY_DATE_TO))
     If ShapeExists(ws, SHAPE_ACTUAL_DATE_FROM) Then SetShapeButtonText ws.Shapes(SHAPE_ACTUAL_DATE_FROM), "Act From" & vbLf & DescribeSingleDate(GetConfigDate(NAME_ACTUAL_WORK_DATE_FROM))
     If ShapeExists(ws, SHAPE_ACTUAL_DATE_TO) Then SetShapeButtonText ws.Shapes(SHAPE_ACTUAL_DATE_TO), "Act To" & vbLf & DescribeSingleDate(GetConfigDate(NAME_ACTUAL_WORK_DATE_TO))
+    If ShapeExists(ws, SHAPE_CUSTOMER_FILTER) Then SetShapeButtonText ws.Shapes(SHAPE_CUSTOMER_FILTER), "Customer" & vbLf & DescribeTextFilter(GetConfigText(NAME_CUSTOMER_LIKE), "Customers")
+    If ShapeExists(ws, SHAPE_WORKCENTER_FILTER) Then SetShapeButtonText ws.Shapes(SHAPE_WORKCENTER_FILTER), "Work Center" & vbLf & DescribeTextFilter(GetConfigText(NAME_WORK_CENTER_LIKE), "Work Centers")
+    If ShapeExists(ws, SHAPE_EMPLOYEE_FILTER) Then SetShapeButtonText ws.Shapes(SHAPE_EMPLOYEE_FILTER), "Employee" & vbLf & DescribeTextFilter(GetConfigText(NAME_EMPLOYEE_LIKE), "Employees")
 End Sub
 
 Public Sub SetupDashboardVisuals()
@@ -197,10 +200,10 @@ Public Sub SetupDashboardVisuals()
         .Cells.Font.Color = COLOR_TEXT_DARK
         .Cells.Interior.Color = RGB(255, 252, 246)
         .Columns("A").ColumnWidth = 2.5
-        .Columns("B:N").ColumnWidth = 12.5
+        .Columns("B:O").ColumnWidth = 11.3
         .Rows("1:60").RowHeight = 22
 
-        .Range("B2:N3").Merge
+        .Range("B2:O3").Merge
         .Range("B2").Value = REPORT_TITLE
         .Range("B2").Interior.Color = COLOR_TITLE_BG
         .Range("B2").Font.Color = RGB(255, 255, 255)
@@ -209,12 +212,12 @@ Public Sub SetupDashboardVisuals()
         .Range("B2").HorizontalAlignment = xlLeft
         .Range("B2").VerticalAlignment = xlCenter
 
-        .Range("B4:N4").Merge
+        .Range("B4:O4").Merge
         .Range("B4").Value = "Control Deck"
         .Range("B4").Font.Bold = True
         .Range("B4").Font.Size = 11
 
-        .Range("B10:N10").Merge
+        .Range("B10:O10").Merge
         .Range("B10").Value = "Run lane: shape controls on top, scoreboard in the middle, raw detail on demand."
         .Range("B10").HorizontalAlignment = xlLeft
         .Range("B10").Interior.Color = COLOR_PANEL_BG
@@ -224,7 +227,7 @@ Public Sub SetupDashboardVisuals()
         .Range("B15").Value = "KPI Arena"
         .Range("B15").Font.Bold = True
 
-        .Range("B25:N25").Merge
+        .Range("B25:O25").Merge
         .Range("B25").Value = "Active Filters"
         .Range("B25").Font.Bold = True
 
@@ -234,7 +237,7 @@ Public Sub SetupDashboardVisuals()
         .Range("B30").Interior.Color = COLOR_PANEL_BG
         .Range("B30").Borders.Color = COLOR_BORDER
 
-        .Range("I30:N30").Merge
+        .Range("I30:O30").Merge
         .Range("I30").Value = "Employee Scoreboard"
         .Range("I30").Font.Bold = True
         .Range("I30").Interior.Color = COLOR_PANEL_BG
@@ -248,9 +251,9 @@ Public Sub SetupDashboardVisuals()
     AddButtonOnRange ws, SHAPE_ACTUAL_DATE_FROM, "Act From", "SelectActualWorkDateFrom", ws.Range("J5:K6"), COLOR_FILTER_BG
     AddButtonOnRange ws, SHAPE_ACTUAL_DATE_TO, "Act To", "SelectActualWorkDateTo", ws.Range("L5:M6"), COLOR_FILTER_BG
 
-    AddButtonOnRange ws, SHAPE_CUSTOMER_FILTER, "Customer", "EditCustomerLike", ws.Range("B8:D9"), COLOR_FILTER_BG
-    AddButtonOnRange ws, SHAPE_WORKCENTER_FILTER, "Work Center", "EditWorkCenterLike", ws.Range("E8:G9"), COLOR_FILTER_BG
-    AddButtonOnRange ws, SHAPE_EMPLOYEE_FILTER, "Employee", "EditEmployeeLike", ws.Range("H8:J9"), COLOR_FILTER_BG
+    AddButtonOnRange ws, SHAPE_CUSTOMER_FILTER, "Customer", "SelectCustomerFilter", ws.Range("B8:D9"), COLOR_FILTER_BG
+    AddButtonOnRange ws, SHAPE_WORKCENTER_FILTER, "Work Center", "SelectWorkCenterFilter", ws.Range("E8:G9"), COLOR_FILTER_BG
+    AddButtonOnRange ws, SHAPE_EMPLOYEE_FILTER, "Employee", "SelectEmployeeFilter", ws.Range("H8:J9"), COLOR_FILTER_BG
     AddButtonOnRange ws, SHAPE_REFRESH, "Refresh", "RefreshReport", ws.Range("K8:L9"), COLOR_ACTION_BG
     AddButtonOnRange ws, SHAPE_CLEAR, "Clear Filters", "ClearAllFilters", ws.Range("M8:N9"), COLOR_ACCENT_BG
 
@@ -259,14 +262,13 @@ Public Sub SetupDashboardVisuals()
     AddButtonOnRange ws, SHAPE_DETAIL, "Detail Grid", "GoToDetailSheet", ws.Range("J13:K14"), COLOR_PANEL_BG
     AddButtonOnRange ws, SHAPE_QUERY_LOG, "Query Log", "GoToQueryLogSheet", ws.Range("L13:M14"), COLOR_PANEL_BG
 
-    SetupKpiCard ws.Range("B17:D20"), "Query Rows", "-"
-    SetupKpiCard ws.Range("E17:G20"), "Distinct Jobs", "-"
-    SetupKpiCard ws.Range("H17:J20"), "Customers", "-"
-    SetupKpiCard ws.Range("K17:M20"), "Estimated Hours", "-"
-    SetupKpiCard ws.Range("B21:D24"), "Actual Hours", "-"
-    SetupKpiCard ws.Range("E21:G24"), "Variance Hours", "-"
-    SetupKpiCard ws.Range("H21:J24"), "Over Target Jobs", "-"
-    SetupKpiCard ws.Range("K21:M24"), "Avg Ratio", "-"
+    SetupKpiCard ws.Range("B17:C20"), "Distinct Jobs", "-"
+    SetupKpiCard ws.Range("D17:E20"), "Customers", "-"
+    SetupKpiCard ws.Range("F17:G20"), "Estimated Hours", "-"
+    SetupKpiCard ws.Range("H17:I20"), "Actual Hours", "-"
+    SetupKpiCard ws.Range("J17:K20"), "Variance Hours", "-"
+    SetupKpiCard ws.Range("L17:M20"), "Over Target Jobs", "-"
+    SetupKpiCard ws.Range("N17:O20"), "Avg Ratio", "-"
 
     UpdateDashboardMetrics Empty
     RefreshDashboardSelectionCaptions
@@ -328,14 +330,13 @@ Public Sub UpdateDashboardMetrics(ByVal dataMatrix As Variant)
 
     If ratioCount > 0 Then avgRatio = avgRatio / ratioCount
 
-    UpdateKpiCard ws.Range("B17:D20"), "Query Rows", Format$(rowCount, "#,##0")
-    UpdateKpiCard ws.Range("E17:G20"), "Distinct Jobs", Format$(jobIds.Count, "#,##0")
-    UpdateKpiCard ws.Range("H17:J20"), "Customers", Format$(customerIds.Count, "#,##0")
-    UpdateKpiCard ws.Range("K17:M20"), "Estimated Hours", Format$(totalEstimated, "#,##0.00")
-    UpdateKpiCard ws.Range("B21:D24"), "Actual Hours", Format$(totalActual, "#,##0.00")
-    UpdateKpiCard ws.Range("E21:G24"), "Variance Hours", Format$(totalVariance, "#,##0.00")
-    UpdateKpiCard ws.Range("H21:J24"), "Over Target Jobs", Format$(overTargetJobs, "#,##0")
-    UpdateKpiCard ws.Range("K21:M24"), "Avg Ratio", Format$(avgRatio, "0.00x")
+    UpdateKpiCard ws.Range("B17:C20"), "Distinct Jobs", Format$(jobIds.Count, "#,##0")
+    UpdateKpiCard ws.Range("D17:E20"), "Customers", Format$(customerIds.Count, "#,##0")
+    UpdateKpiCard ws.Range("F17:G20"), "Estimated Hours", Format$(totalEstimated, "#,##0.00")
+    UpdateKpiCard ws.Range("H17:I20"), "Actual Hours", Format$(totalActual, "#,##0.00")
+    UpdateKpiCard ws.Range("J17:K20"), "Variance Hours", Format$(totalVariance, "#,##0.00")
+    UpdateKpiCard ws.Range("L17:M20"), "Over Target Jobs", Format$(overTargetJobs, "#,##0")
+    UpdateKpiCard ws.Range("N17:O20"), "Avg Ratio", Format$(avgRatio, "0.00x")
 End Sub
 
 Public Function EnsureListObject(ByVal ws As Worksheet, ByVal tableName As String, ByVal anchorAddress As String, ByVal headers As Variant) As ListObject
@@ -441,14 +442,13 @@ Public Sub ApplyDashboardComments()
     Dim ws As Worksheet
 
     Set ws = EnsureWorksheet(SHEET_DASHBOARD)
-    SetCellComment ws.Range("B17"), "Query Rows" & vbLf & "Total rows returned by the active packing query."
-    SetCellComment ws.Range("E17"), "Distinct Jobs" & vbLf & "Unique Job ID count in the active result set."
-    SetCellComment ws.Range("H17"), "Customers" & vbLf & "Unique customer count in the active result set."
-    SetCellComment ws.Range("K17"), "Estimated Hours" & vbLf & "Sum of Estimated Packing Minutes divided by 60."
-    SetCellComment ws.Range("B21"), "Actual Hours" & vbLf & "Sum of Actual Packing Minutes divided by 60."
-    SetCellComment ws.Range("E21"), "Variance Hours" & vbLf & "Sum of Packing Minutes Variance divided by 60."
-    SetCellComment ws.Range("H21"), "Over Target Jobs" & vbLf & "Distinct jobs where actual packing minutes exceed estimated packing minutes."
-    SetCellComment ws.Range("K21"), "Avg Ratio" & vbLf & "Average Packing Time Ratio across rows with a non-zero ratio."
+    SetCellComment ws.Range("B17"), "Distinct Jobs" & vbLf & "Unique Job ID count in the active result set."
+    SetCellComment ws.Range("D17"), "Customers" & vbLf & "Unique customer count in the active result set."
+    SetCellComment ws.Range("F17"), "Estimated Hours" & vbLf & "Sum of Estimated Packing Minutes divided by 60."
+    SetCellComment ws.Range("H17"), "Actual Hours" & vbLf & "Sum of Actual Packing Minutes divided by 60."
+    SetCellComment ws.Range("J17"), "Variance Hours" & vbLf & "Sum of Packing Minutes Variance divided by 60."
+    SetCellComment ws.Range("L17"), "Over Target Jobs" & vbLf & "Distinct jobs where actual packing minutes exceed estimated packing minutes."
+    SetCellComment ws.Range("N17"), "Avg Ratio" & vbLf & "Average Packing Time Ratio across rows with a non-zero ratio."
     SetCellComment ws.Range("B25"), "Active Filters" & vbLf & "Dashboard caption of all current filter values. Blank values behave like SQL NULL."
     SetCellComment ws.Range("B30"), "Work Center Scoreboard" & vbLf & "Aggregated by work center with rows, jobs, estimated hours, actual hours, and variance hours."
     SetCellComment ws.Range("I30"), "Employee Scoreboard" & vbLf & "Aggregated by employee with rows, jobs, estimated hours, actual hours, and variance hours."
@@ -501,10 +501,6 @@ Private Function DescribeSingleDate(ByVal someDate As Variant) As String
     End If
 End Function
 
-Private Function DescribeTextFilter(ByVal valueText As String) As String
-    If Len(Trim$(valueText)) = 0 Then
-        DescribeTextFilter = "Any"
-    Else
-        DescribeTextFilter = valueText
-    End If
+Private Function DescribeTextFilter(ByVal valueText As String, ByVal pluralLabel As String) As String
+    DescribeTextFilter = DescribeDiscreteFilter(valueText, pluralLabel)
 End Function

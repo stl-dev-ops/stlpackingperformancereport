@@ -85,15 +85,15 @@ Public Sub EditActualWorkDateRange()
 End Sub
 
 Public Sub EditCustomerLike()
-    PromptForTextFilter "Customer Like", NAME_CUSTOMER_LIKE, "%"
+    SelectCustomerFilter
 End Sub
 
 Public Sub EditWorkCenterLike()
-    PromptForTextFilter "Work Center Like", NAME_WORK_CENTER_LIKE, "%"
+    SelectWorkCenterFilter
 End Sub
 
 Public Sub EditEmployeeLike()
-    PromptForTextFilter "Employee Like", NAME_EMPLOYEE_LIKE, "%"
+    SelectEmployeeFilter
 End Sub
 
 Public Sub ClearAllFilters()
@@ -387,9 +387,9 @@ Public Function DescribeCurrentFilters() As String
         "Estimate=" & DescribeFilterPair(GetConfigDate(NAME_ESTIMATE_DATE_FROM), GetConfigDate(NAME_ESTIMATE_DATE_TO)), _
         "Delivery=" & DescribeFilterPair(GetConfigDate(NAME_DELIVERY_DATE_FROM), GetConfigDate(NAME_DELIVERY_DATE_TO)), _
         "ActualWork=" & DescribeFilterPair(GetConfigDate(NAME_ACTUAL_WORK_DATE_FROM), GetConfigDate(NAME_ACTUAL_WORK_DATE_TO)), _
-        "CustomerLike=" & DefaultText(GetConfigText(NAME_CUSTOMER_LIKE), "NULL"), _
-        "WorkCenterLike=" & DefaultText(GetConfigText(NAME_WORK_CENTER_LIKE), "NULL"), _
-        "EmployeeLike=" & DefaultText(GetConfigText(NAME_EMPLOYEE_LIKE), "NULL") _
+        "Customer=" & DefaultText(GetConfigText(NAME_CUSTOMER_LIKE), "NULL"), _
+        "WorkCenter=" & DefaultText(GetConfigText(NAME_WORK_CENTER_LIKE), "NULL"), _
+        "Employee=" & DefaultText(GetConfigText(NAME_EMPLOYEE_LIKE), "NULL") _
     ), " | ")
 End Function
 

@@ -14,12 +14,24 @@ Public Function AutomationInvoke(ByVal actionName As String, Optional ByVal arg1
             SelectEstimateDateFrom
         Case "open-estimate-to"
             SelectEstimateDateTo
+        Case "open-customer"
+            SelectCustomerFilter
+        Case "open-workcenter"
+            SelectWorkCenterFilter
+        Case "open-employee"
+            SelectEmployeeFilter
         Case "calendar-next-month"
             CalendarPickerNextMonth
         Case "calendar-prev-month"
             CalendarPickerPrevMonth
         Case "calendar-close"
             CalendarPickerClose
+        Case "value-picker-select-first"
+            ValuePickerSelectFirstVisible
+        Case "value-picker-apply"
+            ValuePickerApply
+        Case "value-picker-close"
+            ValuePickerClose
         Case "refresh"
             RefreshReport
             If InStr(1, TestDashboardStatus(), "failed", vbTextCompare) > 0 Then

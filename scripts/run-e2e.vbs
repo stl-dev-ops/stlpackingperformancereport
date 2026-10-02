@@ -51,6 +51,7 @@ RecordActionResult wb, runId, "Initialize", "InitializeReportWorkbook", InvokeAc
 AssertTrue wb, runId, "Dashboard controls", "Estimate-from button exists", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "ppr_btnEstimateDateFrom")), "Estimate-from button should render"
 AssertTrue wb, runId, "Dashboard controls", "Refresh button exists", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "ppr_btnRefresh")), "Refresh button should render"
 AssertTrue wb, runId, "Dashboard controls", "KPI comment exists", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestCommentExists"), "Dashboard", "B17")), "KPI tooltip comment should exist"
+AssertTrue wb, runId, "Dashboard controls", "Customer button exists", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "ppr_btnCustomerFilter")), "Customer picker button should render"
 
 RecordActionResult wb, runId, "Date picker", "Open estimate-from picker", InvokeAction(xl, wb, "open-estimate-from", "", ""), "Opened donor-style calendar"
 AssertTrue wb, runId, "Date picker", "Calendar popup created", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "pprCal_bg")), "Calendar should render"
@@ -58,6 +59,12 @@ RecordActionResult wb, runId, "Date picker", "Calendar next month", InvokeAction
 RecordActionResult wb, runId, "Date picker", "Calendar previous month", InvokeAction(xl, wb, "calendar-prev-month", "", ""), "Moved calendar backward"
 RecordActionResult wb, runId, "Date picker", "Calendar close", InvokeAction(xl, wb, "calendar-close", "", ""), "Closed calendar"
 AssertTrue wb, runId, "Date picker", "Calendar popup removed", Not CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "pprCal_bg")), "Calendar should close cleanly"
+
+RecordActionResult wb, runId, "Value picker", "Open customer picker", InvokeAction(xl, wb, "open-customer", "", ""), "Opened customer picker"
+AssertTrue wb, runId, "Value picker", "Customer popup created", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "pprVal_bg")), "Customer picker should render"
+RecordActionResult wb, runId, "Value picker", "Toggle first customer", InvokeAction(xl, wb, "value-picker-select-first", "", ""), "Selected first visible customer"
+RecordActionResult wb, runId, "Value picker", "Apply customer picker", InvokeAction(xl, wb, "value-picker-apply", "", ""), "Applied customer selection"
+AssertTrue wb, runId, "Value picker", "Customer filter config updated", Len(CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestConfigText"), "cfgCustomerLike"))) > 0, "Customer picker should set a filter value"
 
 RecordActionResult wb, runId, "Navigation", "Go to configuration", InvokeAction(xl, wb, "goto-configuration", "", ""), "Navigate to Configuration"
 AssertContains wb, runId, "Navigation", "Configuration sheet active", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestCurrentSheetName"))), "Configuration", "Should land on Configuration"

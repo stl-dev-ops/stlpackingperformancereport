@@ -155,7 +155,7 @@ Private Function ReplaceDeclareAssignment(ByVal sqlText As String, ByVal variabl
     ReplaceDeclareAssignment = Left$(sqlText, startPos - 1) & newLine & Mid$(sqlText, lineEnd)
 End Function
 
-Private Function SqlDateLiteral(ByVal configValue As Variant) As String
+Public Function SqlDateLiteral(ByVal configValue As Variant) As String
     If IsEmpty(configValue) Then
         SqlDateLiteral = "NULL"
     Else
@@ -163,7 +163,7 @@ Private Function SqlDateLiteral(ByVal configValue As Variant) As String
     End If
 End Function
 
-Private Function SqlNVarCharLiteral(ByVal configValue As String) As String
+Public Function SqlNVarCharLiteral(ByVal configValue As String) As String
     If Len(Trim$(configValue)) = 0 Then
         SqlNVarCharLiteral = "NULL"
     Else
