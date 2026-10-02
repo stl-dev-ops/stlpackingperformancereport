@@ -28,6 +28,12 @@ Public Function AutomationInvoke(ByVal actionName As String, Optional ByVal arg1
             CalendarPickerClose
         Case "value-picker-select-first"
             ValuePickerSelectFirstVisible
+        Case "value-picker-set-filter"
+            ValuePickerSetFilterText arg1
+        Case "value-picker-select-all"
+            ValuePickerSelectAll
+        Case "value-picker-select-all-visible"
+            ValuePickerSelectAllVisible
         Case "value-picker-apply"
             ValuePickerApply
         Case "value-picker-close"

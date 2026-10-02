@@ -369,6 +369,24 @@ Public Sub ValuePickerSelectFirstVisible()
     Next rowIndex
 End Sub
 
+Public Sub ValuePickerSetFilterText(ByVal filterText As String)
+    Dim ws As Worksheet
+
+    gValueFilterText = Trim$(filterText)
+    Set ws = EnsureWorksheet(PopupSheetOrDashboard())
+    ShowValuePicker ws, ws.Shapes(gValueAnchorShapeName)
+End Sub
+
+Public Sub ValuePickerSelectAllVisible()
+    Dim rowIndex As Long
+
+    For rowIndex = 1 To gValueItemCount
+        If MatchFilterText(gValueItems(rowIndex), gValueFilterText) Then
+            gValueSelected(rowIndex) = True
+        End If
+    Next rowIndex
+End Sub
+
 Public Function DescribeDiscreteFilter(ByVal valueText As String, ByVal pluralLabel As String) As String
     Dim values As Variant
     Dim count As Long

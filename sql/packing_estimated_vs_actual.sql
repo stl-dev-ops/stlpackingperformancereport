@@ -41,9 +41,45 @@ WHERE (@BestDateFrom IS NULL OR v.EstimateDate >= @BestDateFrom)
   AND (@DeliveryDateTo IS NULL OR v.DeliveryDate < DATEADD(DAY, 1, @DeliveryDateTo))
   AND (@ActualWorkDateFrom IS NULL OR v.ActualWorkDate >= @ActualWorkDateFrom)
   AND (@ActualWorkDateTo IS NULL OR v.ActualWorkDate < DATEADD(DAY, 1, @ActualWorkDateTo))
-  AND (@CustomerLike IS NULL OR v.CustomerName LIKE @CustomerLike)
-  AND (@WorkCenterLike IS NULL OR v.WorkCenterName LIKE @WorkCenterLike)
-  AND (@EmployeeLike IS NULL OR v.EmployeeName LIKE @EmployeeLike)
+    AND (
+      @CustomerLike IS NULL
+      OR (
+        (CHARINDEX(N'%', @CustomerLike) > 0 OR CHARINDEX(N'_', @CustomerLike) > 0 OR CHARINDEX(N'[', @CustomerLike) > 0)
+        AND v.CustomerName LIKE @CustomerLike
+      )
+      OR (
+        CHARINDEX(N'%', @CustomerLike) = 0
+        AND CHARINDEX(N'_', @CustomerLike) = 0
+        AND CHARINDEX(N'[', @CustomerLike) = 0
+        AND CHARINDEX(N',' + LTRIM(RTRIM(ISNULL(v.CustomerName, N''))) + N',', N',' + REPLACE(@CustomerLike, N', ', N',') + N',') > 0
+      )
+      )
+    AND (
+      @WorkCenterLike IS NULL
+      OR (
+        (CHARINDEX(N'%', @WorkCenterLike) > 0 OR CHARINDEX(N'_', @WorkCenterLike) > 0 OR CHARINDEX(N'[', @WorkCenterLike) > 0)
+        AND v.WorkCenterName LIKE @WorkCenterLike
+      )
+      OR (
+        CHARINDEX(N'%', @WorkCenterLike) = 0
+        AND CHARINDEX(N'_', @WorkCenterLike) = 0
+        AND CHARINDEX(N'[', @WorkCenterLike) = 0
+        AND CHARINDEX(N',' + LTRIM(RTRIM(ISNULL(v.WorkCenterName, N''))) + N',', N',' + REPLACE(@WorkCenterLike, N', ', N',') + N',') > 0
+      )
+      )
+    AND (
+      @EmployeeLike IS NULL
+      OR (
+        (CHARINDEX(N'%', @EmployeeLike) > 0 OR CHARINDEX(N'_', @EmployeeLike) > 0 OR CHARINDEX(N'[', @EmployeeLike) > 0)
+        AND v.EmployeeName LIKE @EmployeeLike
+      )
+      OR (
+        CHARINDEX(N'%', @EmployeeLike) = 0
+        AND CHARINDEX(N'_', @EmployeeLike) = 0
+        AND CHARINDEX(N'[', @EmployeeLike) = 0
+        AND CHARINDEX(N',' + LTRIM(RTRIM(ISNULL(v.EmployeeName, N''))) + N',', N',' + REPLACE(@EmployeeLike, N', ', N',') + N',') > 0
+      )
+      )
 ORDER BY
     COALESCE(v.EstimateDate, v.DeliveryDate) DESC,
     v.JobID,

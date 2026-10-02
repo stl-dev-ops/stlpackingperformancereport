@@ -66,6 +66,11 @@ RecordActionResult wb, runId, "Value picker", "Toggle first customer", InvokeAct
 RecordActionResult wb, runId, "Value picker", "Apply customer picker", InvokeAction(xl, wb, "value-picker-apply", "", ""), "Applied customer selection"
 AssertTrue wb, runId, "Value picker", "Customer filter config updated", Len(CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestConfigText"), "cfgCustomerLike"))) > 0, "Customer picker should set a filter value"
 
+RecordActionResult wb, runId, "Value picker", "Open employee picker", InvokeAction(xl, wb, "open-employee", "", ""), "Opened employee picker"
+AssertTrue wb, runId, "Value picker", "Employee popup created", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "pprVal_bg")), "Employee picker should render"
+RecordActionResult wb, runId, "Value picker", "Close employee picker", InvokeAction(xl, wb, "value-picker-close", "", ""), "Closed employee picker"
+AssertTrue wb, runId, "Value picker", "Employee popup removed", Not CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "pprVal_bg")), "Employee picker should close cleanly"
+
 RecordActionResult wb, runId, "Navigation", "Go to configuration", InvokeAction(xl, wb, "goto-configuration", "", ""), "Navigate to Configuration"
 AssertContains wb, runId, "Navigation", "Configuration sheet active", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestCurrentSheetName"))), "Configuration", "Should land on Configuration"
 RecordActionResult wb, runId, "Navigation", "Go to detail", InvokeAction(xl, wb, "goto-detail", "", ""), "Navigate to detail"
@@ -83,6 +88,19 @@ RecordActionResult wb, runId, "Filters", "Set work center filter", InvokeAction(
 RecordActionResult wb, runId, "Filters", "Set employee filter", InvokeAction(xl, wb, "set-employee", "%", ""), "Employee filter applied"
 
 RecordActionResult wb, runId, "Refresh", "Refresh report", InvokeAction(xl, wb, "refresh", "", ""), CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestDashboardStatus")))
+AssertTrue wb, runId, "Refresh", "Packing detail rows present", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestTableRowCount"), "Packing Detail", "tblPackingDetail")) > 0, "Full-range refresh should load detail rows"
+
+RecordActionResult wb, runId, "Picker workflow", "Clear filters for subset workflow", InvokeAction(xl, wb, "clear-filters", "", ""), "Reset filter state"
+RecordActionResult wb, runId, "Picker workflow", "Set actual week for subset workflow", InvokeAction(xl, wb, "set-actual-range", "2026-09-20", "2026-09-26"), "Applied known row-producing week"
+RecordActionResult wb, runId, "Picker workflow", "Open work center picker", InvokeAction(xl, wb, "open-workcenter", "", ""), "Opened work center picker"
+AssertTrue wb, runId, "Picker workflow", "Work center popup created", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "pprVal_bg")), "Work center picker should render"
+RecordActionResult wb, runId, "Picker workflow", "Filter work center popup to Shipping", InvokeAction(xl, wb, "value-picker-set-filter", "Shipping", ""), "Filtered visible work centers"
+RecordActionResult wb, runId, "Picker workflow", "Clear work center selections", InvokeAction(xl, wb, "value-picker-select-all", "", ""), "Cleared existing selections in picker"
+RecordActionResult wb, runId, "Picker workflow", "Select visible Shipping work centers", InvokeAction(xl, wb, "value-picker-select-all-visible", "", ""), "Selected all visible work centers"
+RecordActionResult wb, runId, "Picker workflow", "Apply Shipping work centers", InvokeAction(xl, wb, "value-picker-apply", "", ""), "Applied work center subset"
+AssertContains wb, runId, "Picker workflow", "Work center config contains Shipping", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestConfigText"), "cfgWorkCenterLike")), "Shipping", "Picker should store selected work centers"
+RecordActionResult wb, runId, "Picker workflow", "Refresh with Shipping work centers", InvokeAction(xl, wb, "refresh", "", ""), CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestDashboardStatus")))
+AssertTrue wb, runId, "Picker workflow", "Shipping subset returns rows", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestTableRowCount"), "Packing Detail", "tblPackingDetail")) > 0, "Shipping work centers in the known week should return detail rows"
 
 wb.Save
 CaptureSheetWindowPng xl, wb.Worksheets("Dashboard"), exportRoot & "\dashboard.png"
