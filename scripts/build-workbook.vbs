@@ -99,6 +99,9 @@ If CStr(wb.Worksheets(1).Range("A1").Value) <> "OK" Then
 End If
 
 DeleteSheetIfPresent wb, "Sheet1"
+On Error Resume Next
+wb.Worksheets("Dashboard").Activate
+On Error GoTo 0
 wb.SaveAs outPath, 52
 If Err.Number <> 0 Then
     WriteLog "ERR_SAVE:" & Err.Number & ":" & Err.Description

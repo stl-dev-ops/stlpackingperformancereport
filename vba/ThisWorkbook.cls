@@ -12,4 +12,5 @@ Option Explicit
 Private Sub Workbook_Open()
     On Error Resume Next
     InitializeReportWorkbook
+  EnsureWorksheet(SHEET_DASHBOARD).Activate
 End Sub

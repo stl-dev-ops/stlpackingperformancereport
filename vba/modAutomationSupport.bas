@@ -14,6 +14,14 @@ Public Function AutomationInvoke(ByVal actionName As String, Optional ByVal arg1
             SelectEstimateDateFrom
         Case "open-estimate-to"
             SelectEstimateDateTo
+        Case "open-delivery-from"
+            SelectDeliveryDateFrom
+        Case "open-delivery-to"
+            SelectDeliveryDateTo
+        Case "open-actual-from"
+            SelectActualWorkDateFrom
+        Case "open-actual-to"
+            SelectActualWorkDateTo
         Case "open-customer"
             SelectCustomerFilter
         Case "open-workcenter"
@@ -138,4 +146,25 @@ Public Function TestCommentExists(ByVal sheetName As String, ByVal cellAddress A
     On Error Resume Next
     TestCommentExists = Not ws.Range(cellAddress).Comment Is Nothing
     On Error GoTo 0
+End Function
+
+Public Function TestCellText(ByVal sheetName As String, ByVal cellAddress As String) As String
+    Dim ws As Worksheet
+
+    Set ws = EnsureWorksheet(sheetName)
+    TestCellText = CStr(ws.Range(cellAddress).Value)
+End Function
+
+Public Function TestKpiNumericValue(ByVal cellAddress As String) As Double
+    Dim rawText As String
+    Dim parts As Variant
+    Dim valueText As String
+
+    rawText = CStr(EnsureWorksheet(SHEET_DASHBOARD).Range(cellAddress).Value)
+    parts = Split(rawText, vbLf)
+    valueText = Trim$(CStr(parts(UBound(parts))))
+    valueText = Replace(valueText, ",", "")
+    valueText = Replace(valueText, "x", "")
+    valueText = Replace(valueText, "%", "")
+    If IsNumeric(valueText) Then TestKpiNumericValue = CDbl(valueText)
 End Function

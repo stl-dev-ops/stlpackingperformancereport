@@ -46,7 +46,9 @@ runId = InvokeAction(xl, wb, "new-run-id", "e2e", "")
 WriteLog "Run ID: " & runId
 
 RecordPass wb, runId, "Workbook opens", "Open workbook and initialize", "Workbook opened for automation"
+AssertContains wb, runId, "Workbook opens", "Dashboard sheet active on open", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestCurrentSheetName"))), "Dashboard", "Workbook should open on Dashboard"
 RecordActionResult wb, runId, "Initialize", "InitializeReportWorkbook", InvokeAction(xl, wb, "initialize", "", ""), "Workbook initializer completed"
+AssertContains wb, runId, "Initialize", "Dashboard sheet active after initialize", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestCurrentSheetName"))), "Dashboard", "Initializer should leave workbook on Dashboard"
 
 AssertTrue wb, runId, "Dashboard controls", "Estimate-from button exists", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "ppr_btnEstimateDateFrom")), "Estimate-from button should render"
 AssertTrue wb, runId, "Dashboard controls", "Refresh button exists", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "ppr_btnRefresh")), "Refresh button should render"
@@ -59,6 +61,13 @@ RecordActionResult wb, runId, "Date picker", "Calendar next month", InvokeAction
 RecordActionResult wb, runId, "Date picker", "Calendar previous month", InvokeAction(xl, wb, "calendar-prev-month", "", ""), "Moved calendar backward"
 RecordActionResult wb, runId, "Date picker", "Calendar close", InvokeAction(xl, wb, "calendar-close", "", ""), "Closed calendar"
 AssertTrue wb, runId, "Date picker", "Calendar popup removed", Not CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "pprCal_bg")), "Calendar should close cleanly"
+RecordActionResult wb, runId, "Date picker", "Open delivery-from picker", InvokeAction(xl, wb, "open-delivery-from", "", ""), "Opened delivery-from calendar"
+AssertTrue wb, runId, "Date picker", "Delivery calendar popup created", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "pprCal_bg")), "Delivery calendar should render"
+RecordActionResult wb, runId, "Date picker", "Close delivery-from picker", InvokeAction(xl, wb, "calendar-close", "", ""), "Closed delivery calendar"
+RecordActionResult wb, runId, "Date picker", "Open actual-to picker", InvokeAction(xl, wb, "open-actual-to", "", ""), "Opened actual-to calendar"
+AssertTrue wb, runId, "Date picker", "Actual-to calendar popup created", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "pprCal_bg")), "Actual-to calendar should render"
+RecordActionResult wb, runId, "Date picker", "Close actual-to picker", InvokeAction(xl, wb, "calendar-close", "", ""), "Closed actual-to calendar"
+AssertTrue wb, runId, "Date picker", "Calendar popup removed after additional flows", Not CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "pprCal_bg")), "Calendar popup should be removed"
 
 RecordActionResult wb, runId, "Value picker", "Open customer picker", InvokeAction(xl, wb, "open-customer", "", ""), "Opened customer picker"
 AssertTrue wb, runId, "Value picker", "Customer popup created", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "pprVal_bg")), "Customer picker should render"
@@ -70,6 +79,10 @@ RecordActionResult wb, runId, "Value picker", "Open employee picker", InvokeActi
 AssertTrue wb, runId, "Value picker", "Employee popup created", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "pprVal_bg")), "Employee picker should render"
 RecordActionResult wb, runId, "Value picker", "Close employee picker", InvokeAction(xl, wb, "value-picker-close", "", ""), "Closed employee picker"
 AssertTrue wb, runId, "Value picker", "Employee popup removed", Not CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "pprVal_bg")), "Employee picker should close cleanly"
+RecordActionResult wb, runId, "Value picker", "Open work center picker", InvokeAction(xl, wb, "open-workcenter", "", ""), "Opened work center picker"
+AssertTrue wb, runId, "Value picker", "Work center popup created", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "pprVal_bg")), "Work center picker should render"
+RecordActionResult wb, runId, "Value picker", "Close work center picker", InvokeAction(xl, wb, "value-picker-close", "", ""), "Closed work center picker"
+AssertTrue wb, runId, "Value picker", "Work center popup removed", Not CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "pprVal_bg")), "Work center picker should close cleanly"
 
 RecordActionResult wb, runId, "Navigation", "Go to configuration", InvokeAction(xl, wb, "goto-configuration", "", ""), "Navigate to Configuration"
 AssertContains wb, runId, "Navigation", "Configuration sheet active", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestCurrentSheetName"))), "Configuration", "Should land on Configuration"
@@ -91,6 +104,7 @@ RecordActionResult wb, runId, "Refresh", "Refresh report", InvokeAction(xl, wb, 
 AssertTrue wb, runId, "Refresh", "Packing detail rows present", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestTableRowCount"), "Packing Detail", "tblPackingDetail")) > 0, "Full-range refresh should load detail rows"
 
 RecordActionResult wb, runId, "Picker workflow", "Clear filters for subset workflow", InvokeAction(xl, wb, "clear-filters", "", ""), "Reset filter state"
+AssertTrue wb, runId, "Picker workflow", "Work center filter cleared", Len(CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestConfigText"), "cfgWorkCenterLike"))) = 0, "Work center filter should be cleared"
 RecordActionResult wb, runId, "Picker workflow", "Set actual week for subset workflow", InvokeAction(xl, wb, "set-actual-range", "2026-09-20", "2026-09-26"), "Applied known row-producing week"
 RecordActionResult wb, runId, "Picker workflow", "Open work center picker", InvokeAction(xl, wb, "open-workcenter", "", ""), "Opened work center picker"
 AssertTrue wb, runId, "Picker workflow", "Work center popup created", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "pprVal_bg")), "Work center picker should render"
@@ -101,6 +115,14 @@ RecordActionResult wb, runId, "Picker workflow", "Apply Shipping work centers", 
 AssertContains wb, runId, "Picker workflow", "Work center config contains Shipping", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestConfigText"), "cfgWorkCenterLike")), "Shipping", "Picker should store selected work centers"
 RecordActionResult wb, runId, "Picker workflow", "Refresh with Shipping work centers", InvokeAction(xl, wb, "refresh", "", ""), CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestDashboardStatus")))
 AssertTrue wb, runId, "Picker workflow", "Shipping subset returns rows", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestTableRowCount"), "Packing Detail", "tblPackingDetail")) > 0, "Shipping work centers in the known week should return detail rows"
+AssertTrue wb, runId, "Picker workflow", "Distinct jobs KPI updates for Shipping subset", CDbl(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestKpiNumericValue"), "B17")) > 0, "Distinct jobs KPI should be non-zero for Shipping subset"
+AssertTrue wb, runId, "Picker workflow", "Actual hours KPI updates for Shipping subset", CDbl(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestKpiNumericValue"), "H17")) > 0, "Actual hours KPI should be non-zero for Shipping subset"
+AssertTrue wb, runId, "Picker workflow", "Work center summary has rows", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestTableRowCount"), "Dashboard", "tblWorkCenterSummary")) > 0, "Work center summary should populate for Shipping subset"
+AssertTrue wb, runId, "Picker workflow", "Employee summary has rows", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestTableRowCount"), "Dashboard", "tblEmployeeSummary")) > 0, "Employee summary should populate for Shipping subset"
+
+RecordActionResult wb, runId, "Reset workflow", "Clear filters after subset workflow", InvokeAction(xl, wb, "clear-filters", "", ""), "Returned dashboard to unfiltered state"
+AssertContains wb, runId, "Reset workflow", "Active filter caption reset", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestCellText"), "Dashboard", "B26")), "Work Center: Any", "Active filter panel should show cleared work center filter"
+RecordActionResult wb, runId, "Reset workflow", "Return to dashboard before save", InvokeAction(xl, wb, "goto-dashboard", "", ""), "Ensure workbook ends on dashboard"
 
 wb.Save
 CaptureSheetWindowPng xl, wb.Worksheets("Dashboard"), exportRoot & "\dashboard.png"
