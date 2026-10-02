@@ -72,6 +72,15 @@ while ((Get-Date) -lt $deadline) {
     $windows = Get-VisibleWindows
     foreach ($window in $windows) {
         $title = $window.Title
+        if ($title -like '*Microsoft Visual Basic for Applications*' -and $title -like '*[break]*') {
+            Write-Log ("VBE break window detected: " + $title)
+            [void]$shell.AppActivate($title)
+            Start-Sleep -Milliseconds 150
+            $shell.SendKeys('%{F4}')
+            Write-Log ("VBE break window close requested: " + $title)
+            continue
+        }
+
         if ($window.Class -eq '#32770' -and (
             $title -like '*Microsoft Visual Basic*' -or
             $title -like '*Compile error*' -or

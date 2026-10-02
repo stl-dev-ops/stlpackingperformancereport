@@ -382,7 +382,7 @@ Private Sub PromptForTextFilter(ByVal labelText As String, ByVal rangeName As St
     AppendInteractionLog "FilterUpdate", "Success", labelText & " updated", DescribeCurrentFilters()
 End Sub
 
-Private Function DescribeCurrentFilters() As String
+Public Function DescribeCurrentFilters() As String
     DescribeCurrentFilters = Join(Array( _
         "Estimate=" & DescribeFilterPair(GetConfigDate(NAME_ESTIMATE_DATE_FROM), GetConfigDate(NAME_ESTIMATE_DATE_TO)), _
         "Delivery=" & DescribeFilterPair(GetConfigDate(NAME_DELIVERY_DATE_FROM), GetConfigDate(NAME_DELIVERY_DATE_TO)), _

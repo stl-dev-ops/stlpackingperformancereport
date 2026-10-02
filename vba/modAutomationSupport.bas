@@ -10,6 +10,16 @@ Public Function AutomationInvoke(ByVal actionName As String, Optional ByVal arg1
             Exit Function
         Case "initialize"
             InitializeReportWorkbook
+        Case "open-estimate-from"
+            SelectEstimateDateFrom
+        Case "open-estimate-to"
+            SelectEstimateDateTo
+        Case "calendar-next-month"
+            CalendarPickerNextMonth
+        Case "calendar-prev-month"
+            CalendarPickerPrevMonth
+        Case "calendar-close"
+            CalendarPickerClose
         Case "refresh"
             RefreshReport
             If InStr(1, TestDashboardStatus(), "failed", vbTextCompare) > 0 Then

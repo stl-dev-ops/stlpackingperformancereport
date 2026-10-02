@@ -34,9 +34,12 @@ Public Const NAME_CONNECTION_TIMEOUT As String = "cfgConnectionTimeout"
 Public Const NAME_STATUS As String = "cfgStatus"
 Public Const NAME_VERSION As String = "cfgWorkbookVersion"
 
-Public Const SHAPE_ESTIMATE_DATES As String = "ppr_btnEstimateDates"
-Public Const SHAPE_DELIVERY_DATES As String = "ppr_btnDeliveryDates"
-Public Const SHAPE_ACTUAL_DATES As String = "ppr_btnActualDates"
+Public Const SHAPE_ESTIMATE_DATE_FROM As String = "ppr_btnEstimateDateFrom"
+Public Const SHAPE_ESTIMATE_DATE_TO As String = "ppr_btnEstimateDateTo"
+Public Const SHAPE_DELIVERY_DATE_FROM As String = "ppr_btnDeliveryDateFrom"
+Public Const SHAPE_DELIVERY_DATE_TO As String = "ppr_btnDeliveryDateTo"
+Public Const SHAPE_ACTUAL_DATE_FROM As String = "ppr_btnActualDateFrom"
+Public Const SHAPE_ACTUAL_DATE_TO As String = "ppr_btnActualDateTo"
 Public Const SHAPE_CUSTOMER_FILTER As String = "ppr_btnCustomerFilter"
 Public Const SHAPE_WORKCENTER_FILTER As String = "ppr_btnWorkCenterFilter"
 Public Const SHAPE_EMPLOYEE_FILTER As String = "ppr_btnEmployeeFilter"
@@ -100,16 +103,16 @@ Public Function GetConfigText(ByVal rangeName As String, Optional ByVal defaultV
     End If
 End Function
 
-Public Function GetConfigDate(ByVal rangeName As String) As Variant
+Public Function GetConfigDate(ByVal rangeName As String, Optional ByVal defaultValue As Variant = Empty) As Variant
     Dim rng As Range
 
     Set rng = GetNamedRange(rangeName)
     If rng Is Nothing Then
-        GetConfigDate = Empty
+        GetConfigDate = defaultValue
     ElseIf IsDate(rng.Value) Then
         GetConfigDate = DateValue(CDate(rng.Value))
     Else
-        GetConfigDate = Empty
+        GetConfigDate = defaultValue
     End If
 End Function
 

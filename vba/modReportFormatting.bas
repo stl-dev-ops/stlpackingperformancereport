@@ -1,6 +1,8 @@
 Attribute VB_Name = "modReportFormatting"
 Option Explicit
 
+Private Const POPUP_CORNER_RADIUS_PX As Double = 6#
+
 Public Sub SetShapeButtonText(ByVal shp As Shape, ByVal caption As String)
     On Error Resume Next
     shp.TextFrame2.TextRange.Text = caption
@@ -15,6 +17,45 @@ Public Sub SetShapeButtonText(ByVal shp As Shape, ByVal caption As String)
     shp.TextFrame.Characters.Font.Name = "Bahnschrift SemiBold"
     shp.TextFrame.HorizontalAlignment = xlHAlignCenter
     shp.TextFrame.VerticalAlignment = xlVAlignCenter
+    On Error GoTo 0
+End Sub
+
+Public Sub SetShapeTextCenter(ByVal shp As Shape, ByVal caption As String, ByVal fontSize As Long, ByVal bold As Boolean)
+    On Error Resume Next
+    shp.TextFrame2.TextRange.Text = caption
+    shp.TextFrame2.TextRange.Font.Size = fontSize
+    shp.TextFrame2.TextRange.Font.Bold = IIf(bold, msoTrue, msoFalse)
+    shp.TextFrame2.TextRange.Font.Name = "Bahnschrift"
+    shp.TextFrame2.TextRange.Font.Fill.ForeColor.RGB = COLOR_TEXT_DARK
+    shp.TextFrame2.VerticalAnchor = msoAnchorMiddle
+    shp.TextFrame2.TextRange.ParagraphFormat.Alignment = msoAlignCenter
+    shp.TextFrame.Characters.Text = caption
+    shp.TextFrame.Characters.Font.Color = COLOR_TEXT_DARK
+    shp.TextFrame.Characters.Font.Name = "Bahnschrift"
+    shp.TextFrame.HorizontalAlignment = xlHAlignCenter
+    shp.TextFrame.VerticalAlignment = xlVAlignCenter
+    On Error GoTo 0
+End Sub
+
+Public Sub SetPopupOuterShapeStyle(ByVal shp As Shape)
+    Dim minDim As Double
+    Dim adjustment As Double
+
+    shp.Fill.ForeColor.RGB = RGB(255, 255, 255)
+    shp.Line.ForeColor.RGB = COLOR_BORDER
+    shp.Line.Weight = 1
+    shp.Placement = xlMoveAndSize
+
+    minDim = shp.Width
+    If shp.Height < minDim Then minDim = shp.Height
+    If minDim <= 0 Then minDim = 1
+
+    adjustment = POPUP_CORNER_RADIUS_PX / minDim
+    If adjustment < 0# Then adjustment = 0#
+    If adjustment > 0.5 Then adjustment = 0.5
+
+    On Error Resume Next
+    shp.Adjustments.Item(1) = adjustment
     On Error GoTo 0
 End Sub
 
@@ -135,6 +176,13 @@ Public Sub RefreshDashboardSelectionCaptions()
         .Borders.Color = COLOR_BORDER
         .Font.Name = "Bahnschrift"
     End With
+
+    If ShapeExists(ws, SHAPE_ESTIMATE_DATE_FROM) Then SetShapeButtonText ws.Shapes(SHAPE_ESTIMATE_DATE_FROM), "Est From" & vbLf & DescribeSingleDate(GetConfigDate(NAME_ESTIMATE_DATE_FROM))
+    If ShapeExists(ws, SHAPE_ESTIMATE_DATE_TO) Then SetShapeButtonText ws.Shapes(SHAPE_ESTIMATE_DATE_TO), "Est To" & vbLf & DescribeSingleDate(GetConfigDate(NAME_ESTIMATE_DATE_TO))
+    If ShapeExists(ws, SHAPE_DELIVERY_DATE_FROM) Then SetShapeButtonText ws.Shapes(SHAPE_DELIVERY_DATE_FROM), "Del From" & vbLf & DescribeSingleDate(GetConfigDate(NAME_DELIVERY_DATE_FROM))
+    If ShapeExists(ws, SHAPE_DELIVERY_DATE_TO) Then SetShapeButtonText ws.Shapes(SHAPE_DELIVERY_DATE_TO), "Del To" & vbLf & DescribeSingleDate(GetConfigDate(NAME_DELIVERY_DATE_TO))
+    If ShapeExists(ws, SHAPE_ACTUAL_DATE_FROM) Then SetShapeButtonText ws.Shapes(SHAPE_ACTUAL_DATE_FROM), "Act From" & vbLf & DescribeSingleDate(GetConfigDate(NAME_ACTUAL_WORK_DATE_FROM))
+    If ShapeExists(ws, SHAPE_ACTUAL_DATE_TO) Then SetShapeButtonText ws.Shapes(SHAPE_ACTUAL_DATE_TO), "Act To" & vbLf & DescribeSingleDate(GetConfigDate(NAME_ACTUAL_WORK_DATE_TO))
 End Sub
 
 Public Sub SetupDashboardVisuals()
@@ -193,19 +241,23 @@ Public Sub SetupDashboardVisuals()
         .Range("I30").Borders.Color = COLOR_BORDER
     End With
 
-    AddButtonOnRange ws, SHAPE_ESTIMATE_DATES, "Estimate Dates", "EditEstimateDateRange", ws.Range("B5:C6"), COLOR_FILTER_BG
-    AddButtonOnRange ws, SHAPE_DELIVERY_DATES, "Delivery Dates", "EditDeliveryDateRange", ws.Range("D5:E6"), COLOR_FILTER_BG
-    AddButtonOnRange ws, SHAPE_ACTUAL_DATES, "Actual Dates", "EditActualWorkDateRange", ws.Range("F5:G6"), COLOR_FILTER_BG
-    AddButtonOnRange ws, SHAPE_CUSTOMER_FILTER, "Customer", "EditCustomerLike", ws.Range("H5:I6"), COLOR_FILTER_BG
-    AddButtonOnRange ws, SHAPE_WORKCENTER_FILTER, "Work Center", "EditWorkCenterLike", ws.Range("J5:K6"), COLOR_FILTER_BG
-    AddButtonOnRange ws, SHAPE_EMPLOYEE_FILTER, "Employee", "EditEmployeeLike", ws.Range("L5:M6"), COLOR_FILTER_BG
+    AddButtonOnRange ws, SHAPE_ESTIMATE_DATE_FROM, "Est From", "SelectEstimateDateFrom", ws.Range("B5:C6"), COLOR_FILTER_BG
+    AddButtonOnRange ws, SHAPE_ESTIMATE_DATE_TO, "Est To", "SelectEstimateDateTo", ws.Range("D5:E6"), COLOR_FILTER_BG
+    AddButtonOnRange ws, SHAPE_DELIVERY_DATE_FROM, "Del From", "SelectDeliveryDateFrom", ws.Range("F5:G6"), COLOR_FILTER_BG
+    AddButtonOnRange ws, SHAPE_DELIVERY_DATE_TO, "Del To", "SelectDeliveryDateTo", ws.Range("H5:I6"), COLOR_FILTER_BG
+    AddButtonOnRange ws, SHAPE_ACTUAL_DATE_FROM, "Act From", "SelectActualWorkDateFrom", ws.Range("J5:K6"), COLOR_FILTER_BG
+    AddButtonOnRange ws, SHAPE_ACTUAL_DATE_TO, "Act To", "SelectActualWorkDateTo", ws.Range("L5:M6"), COLOR_FILTER_BG
 
-    AddButtonOnRange ws, SHAPE_REFRESH, "Refresh", "RefreshReport", ws.Range("B8:C9"), COLOR_ACTION_BG
-    AddButtonOnRange ws, SHAPE_CLEAR, "Clear Filters", "ClearAllFilters", ws.Range("D8:E9"), COLOR_ACCENT_BG
-    AddButtonOnRange ws, SHAPE_CONFIG, "Config", "GoToConfigurationSheet", ws.Range("F8:G9"), COLOR_PANEL_BG
-    AddButtonOnRange ws, SHAPE_DASHBOARD, "Dashboard", "GoToDashboardSheet", ws.Range("H8:I9"), COLOR_PANEL_BG
-    AddButtonOnRange ws, SHAPE_DETAIL, "Detail Grid", "GoToDetailSheet", ws.Range("J8:K9"), COLOR_PANEL_BG
-    AddButtonOnRange ws, SHAPE_QUERY_LOG, "Query Log", "GoToQueryLogSheet", ws.Range("L8:M9"), COLOR_PANEL_BG
+    AddButtonOnRange ws, SHAPE_CUSTOMER_FILTER, "Customer", "EditCustomerLike", ws.Range("B8:D9"), COLOR_FILTER_BG
+    AddButtonOnRange ws, SHAPE_WORKCENTER_FILTER, "Work Center", "EditWorkCenterLike", ws.Range("E8:G9"), COLOR_FILTER_BG
+    AddButtonOnRange ws, SHAPE_EMPLOYEE_FILTER, "Employee", "EditEmployeeLike", ws.Range("H8:J9"), COLOR_FILTER_BG
+    AddButtonOnRange ws, SHAPE_REFRESH, "Refresh", "RefreshReport", ws.Range("K8:L9"), COLOR_ACTION_BG
+    AddButtonOnRange ws, SHAPE_CLEAR, "Clear Filters", "ClearAllFilters", ws.Range("M8:N9"), COLOR_ACCENT_BG
+
+    AddButtonOnRange ws, SHAPE_CONFIG, "Config", "GoToConfigurationSheet", ws.Range("J11:K12"), COLOR_PANEL_BG
+    AddButtonOnRange ws, SHAPE_DASHBOARD, "Dashboard", "GoToDashboardSheet", ws.Range("L11:M12"), COLOR_PANEL_BG
+    AddButtonOnRange ws, SHAPE_DETAIL, "Detail Grid", "GoToDetailSheet", ws.Range("J13:K14"), COLOR_PANEL_BG
+    AddButtonOnRange ws, SHAPE_QUERY_LOG, "Query Log", "GoToQueryLogSheet", ws.Range("L13:M14"), COLOR_PANEL_BG
 
     SetupKpiCard ws.Range("B17:D20"), "Query Rows", "-"
     SetupKpiCard ws.Range("E17:G20"), "Distinct Jobs", "-"
@@ -439,6 +491,14 @@ Private Function DescribeDateRange(ByVal fromValue As Variant, ByVal toValue As 
     If IsEmpty(fromValue) Then fromText = "Any" Else fromText = Format$(CDate(fromValue), "m/d/yyyy")
     If IsEmpty(toValue) Then toText = "Any" Else toText = Format$(CDate(toValue), "m/d/yyyy")
     DescribeDateRange = fromText & " to " & toText
+End Function
+
+Private Function DescribeSingleDate(ByVal someDate As Variant) As String
+    If IsEmpty(someDate) Then
+        DescribeSingleDate = "Any"
+    Else
+        DescribeSingleDate = Format$(CDate(someDate), "mmm d, yyyy")
+    End If
 End Function
 
 Private Function DescribeTextFilter(ByVal valueText As String) As String

@@ -48,9 +48,16 @@ WriteLog "Run ID: " & runId
 RecordPass wb, runId, "Workbook opens", "Open workbook and initialize", "Workbook opened for automation"
 RecordActionResult wb, runId, "Initialize", "InitializeReportWorkbook", InvokeAction(xl, wb, "initialize", "", ""), "Workbook initializer completed"
 
-AssertTrue wb, runId, "Dashboard controls", "Estimate button exists", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "ppr_btnEstimateDates")), "Estimate button should render"
+AssertTrue wb, runId, "Dashboard controls", "Estimate-from button exists", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "ppr_btnEstimateDateFrom")), "Estimate-from button should render"
 AssertTrue wb, runId, "Dashboard controls", "Refresh button exists", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "ppr_btnRefresh")), "Refresh button should render"
 AssertTrue wb, runId, "Dashboard controls", "KPI comment exists", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestCommentExists"), "Dashboard", "B17")), "KPI tooltip comment should exist"
+
+RecordActionResult wb, runId, "Date picker", "Open estimate-from picker", InvokeAction(xl, wb, "open-estimate-from", "", ""), "Opened donor-style calendar"
+AssertTrue wb, runId, "Date picker", "Calendar popup created", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "pprCal_bg")), "Calendar should render"
+RecordActionResult wb, runId, "Date picker", "Calendar next month", InvokeAction(xl, wb, "calendar-next-month", "", ""), "Moved calendar forward"
+RecordActionResult wb, runId, "Date picker", "Calendar previous month", InvokeAction(xl, wb, "calendar-prev-month", "", ""), "Moved calendar backward"
+RecordActionResult wb, runId, "Date picker", "Calendar close", InvokeAction(xl, wb, "calendar-close", "", ""), "Closed calendar"
+AssertTrue wb, runId, "Date picker", "Calendar popup removed", Not CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "pprCal_bg")), "Calendar should close cleanly"
 
 RecordActionResult wb, runId, "Navigation", "Go to configuration", InvokeAction(xl, wb, "goto-configuration", "", ""), "Navigate to Configuration"
 AssertContains wb, runId, "Navigation", "Configuration sheet active", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestCurrentSheetName"))), "Configuration", "Should land on Configuration"
