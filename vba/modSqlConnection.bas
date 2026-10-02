@@ -96,35 +96,10 @@ Public Function LoadPackingEstimatedVsActualData(ByVal cn As Object, ByRef heade
     Dim cmd As Object
     Dim sqlText As String
 
-    sqlText = LoadSqlFromWorkbookPath(ResolvePackingSqlRelativePath())
+    sqlText = modEmbeddedSql.PackingSqlText()
     sqlText = ApplyConfigFilters(sqlText)
     Set cmd = CreateTextCommand(cn, sqlText)
     LoadPackingEstimatedVsActualData = ExecuteCommandMatrix(cmd, headers)
-End Function
-
-Private Function ResolvePackingSqlRelativePath() As String
-    Dim fso As Object
-
-    Set fso = CreateObject("Scripting.FileSystemObject")
-    If fso.FileExists(ThisWorkbook.Path & "\packing_estimated_vs_actual.sql") Then
-        ResolvePackingSqlRelativePath = "packing_estimated_vs_actual.sql"
-    Else
-        ResolvePackingSqlRelativePath = "sql\packing_estimated_vs_actual.sql"
-    End If
-End Function
-
-Private Function LoadSqlFromWorkbookPath(ByVal relativePath As String) As String
-    Dim fso As Object
-    Dim ts As Object
-    Dim fullPath As String
-
-    fullPath = ThisWorkbook.Path & "\" & relativePath
-    Set fso = CreateObject("Scripting.FileSystemObject")
-    If Not fso.FileExists(fullPath) Then Err.Raise vbObjectError + 401, "LoadSqlFromWorkbookPath", "SQL file not found: " & fullPath
-
-    Set ts = fso.OpenTextFile(fullPath, 1)
-    LoadSqlFromWorkbookPath = ts.ReadAll
-    ts.Close
 End Function
 
 Private Function ApplyConfigFilters(ByVal sqlText As String) As String

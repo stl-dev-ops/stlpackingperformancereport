@@ -208,6 +208,51 @@ Public Function TestDashboardLayoutIssueCount() As Long
     TestDashboardLayoutIssueCount = CountDashboardLayoutIssues(EnsureWorksheet(SHEET_DASHBOARD))
 End Function
 
+Public Function TestDashboardGridResize() As Boolean
+    Dim ws As Worksheet
+    Dim headers As Variant
+    Dim headerText As Variant
+    Dim rowCount As Variant
+    Dim rowIndex As Long
+    Dim columnIndex As Long
+    Dim matrix() As Variant
+    Dim gridRange As Range
+
+    On Error GoTo Failed
+    Set ws = EnsureWorksheet(SHEET_DASHBOARD)
+    headerText = Split("Jobs,Customers,Estimated Hours,Actual Hours,Variance Hours,Over Target Jobs,Variance %,Packing Status,Job Description,Order Quantity,Actual Work Date,Work Center,Employee", ",")
+    ReDim headers(1 To 13)
+    For columnIndex = 1 To 13
+        headers(columnIndex) = headerText(columnIndex - 1)
+    Next columnIndex
+    For Each rowCount In Array(17, 3, 0, 2)
+        If rowCount = 0 Then
+            WriteDashboardDetailGrid ws, headers, Empty
+        Else
+            ReDim matrix(1 To CLng(rowCount), 1 To 13)
+            For rowIndex = 1 To CLng(rowCount)
+                For columnIndex = 1 To 13
+                    matrix(rowIndex, columnIndex) = "Row " & CStr(rowIndex)
+                Next columnIndex
+            Next rowIndex
+            WriteDashboardDetailGrid ws, headers, matrix
+        End If
+        Set gridRange = ThisWorkbook.Names(TABLE_DASHBOARD_DETAIL).RefersToRange
+        If gridRange.Rows.Count <> CLng(rowCount) + 1 Then Exit Function
+        If DashboardScoreboardTitleRow() <> CLng(rowCount) + 18 Then Exit Function
+        If Not TestDashboardGridAligned() Then Exit Function
+        If ws.Cells(DashboardScoreboardTitleRow(), 2).Value <> "Work Center Scoreboard" Then Exit Function
+        If ws.Cells(DashboardScoreboardTitleRow(), 10).Value <> "Employee Scoreboard" Then Exit Function
+        If rowCount < 17 Then
+            If Len(CStr(ws.Cells(33, 26).Value)) > 0 Then Exit Function
+            If Len(CStr(ws.Cells(35, 10).Value)) > 0 Then Exit Function
+            If Not ws.Cells(35, 10).Comment Is Nothing Then Exit Function
+        End If
+    Next rowCount
+    TestDashboardGridResize = True
+Failed:
+End Function
+
 Public Function TestDashboardGridAligned() As Boolean
     Dim ws As Worksheet
     Dim gridRange As Range

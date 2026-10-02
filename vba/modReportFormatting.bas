@@ -181,17 +181,6 @@ Public Sub SetupDashboardVisuals()
         .Range("B15").Interior.Color = COLOR_PANEL_BG
         .Range("B15").Borders.Color = COLOR_BORDER
 
-        .Range("B30:H30").Merge
-        .Range("B30").Value = "Work Center Scoreboard"
-        .Range("B30").Font.Bold = True
-        .Range("B30").Interior.Color = COLOR_PANEL_BG
-        .Range("B30").Borders.Color = COLOR_BORDER
-
-        .Range("J30:P30").Merge
-        .Range("J30").Value = "Employee Scoreboard"
-        .Range("J30").Font.Bold = True
-        .Range("J30").Interior.Color = COLOR_PANEL_BG
-        .Range("J30").Borders.Color = COLOR_BORDER
     End With
 
     AddButtonOnRange ws, SHAPE_ESTIMATE_DATE_FROM, "Est From", "SelectEstimateDateFrom", ws.Range("B5:C6"), COLOR_FILTER_BG
@@ -394,14 +383,29 @@ Public Sub WriteDashboardDetailGrid(ByVal ws As Worksheet, ByVal headers As Vari
     Dim rowCount As Long
     Dim targetCell As Range
     Dim gridRange As Range
+    Dim oldGrid As Range
+    Dim lastOldRow As Long
+    Dim tableName As Variant
 
+    lastOldRow = 30
     On Error Resume Next
+    Set oldGrid = ThisWorkbook.Names(TABLE_DASHBOARD_DETAIL).RefersToRange
     Set lo = ws.ListObjects(TABLE_DASHBOARD_DETAIL)
     On Error GoTo 0
+    If Not oldGrid Is Nothing Then lastOldRow = Application.Max(lastOldRow, oldGrid.Row + oldGrid.Rows.Count + 1)
     If Not lo Is Nothing Then lo.Unlist
-
-    ws.Range("B16:AA28").UnMerge
-    ws.Range("B16:AA28").Clear
+    For Each tableName In Array(TABLE_WORKCENTER_SUMMARY, TABLE_EMPLOYEE_SUMMARY)
+        Set lo = Nothing
+        On Error Resume Next
+        Set lo = ws.ListObjects(CStr(tableName))
+        On Error GoTo 0
+        If Not lo Is Nothing Then
+            lastOldRow = Application.Max(lastOldRow, lo.Range.Row + lo.Range.Rows.Count - 1)
+            lo.Unlist
+        End If
+    Next tableName
+    ws.Range("B16:AA" & CStr(lastOldRow)).UnMerge
+    ws.Range("B16:AA" & CStr(lastOldRow)).Clear
     rowCount = MatrixRowCount(matrix)
     Set gridRange = ws.Range("B16").Resize(rowCount + 1, HeaderCount(headers) * 2)
     For rowIndex = 0 To rowCount
@@ -424,16 +428,50 @@ Public Sub WriteDashboardDetailGrid(ByVal ws As Worksheet, ByVal headers As Vari
     Next rowIndex
     ThisWorkbook.Names.Add Name:=TABLE_DASHBOARD_DETAIL, RefersTo:="=" & gridRange.Address(True, True, xlA1, True)
     ws.Columns("P:AA").ColumnWidth = 11.3
-    ws.Rows("16:28").RowHeight = 32
+    ws.Rows("16:" & CStr(16 + rowCount)).RowHeight = 32
+    SetupDashboardScoreboards ws
     ApplyDashboardDetailFormatting ws
 End Sub
 
+Public Function DashboardScoreboardTitleRow() As Long
+    Dim gridRange As Range
+
+    Set gridRange = ThisWorkbook.Names(TABLE_DASHBOARD_DETAIL).RefersToRange
+    DashboardScoreboardTitleRow = gridRange.Row + gridRange.Rows.Count + 1
+End Function
+
+Private Sub SetupDashboardScoreboards(ByVal ws As Worksheet)
+    Dim titleRow As Long
+    Dim targetRange As Range
+    Dim columnIndex As Variant
+
+    titleRow = DashboardScoreboardTitleRow()
+    For Each columnIndex In Array(2, 10)
+        Set targetRange = ws.Cells(titleRow, CLng(columnIndex)).Resize(1, 7)
+        With targetRange
+            .Merge
+            .Value = IIf(columnIndex = 2, "Work Center Scoreboard", "Employee Scoreboard")
+            .Font.Bold = True
+            .Interior.Color = COLOR_PANEL_BG
+            .Borders.Color = COLOR_BORDER
+        End With
+        SetCellComment targetRange.Cells(1, 1), "All filtered rows grouped by " & _
+            IIf(columnIndex = 2, "work center", "employee") & "." & vbLf & _
+            "Estimates allocated by share of job actual time. Variance = actual minus allocated estimate; variance % = group variance / group estimate." & vbLf & _
+            "Negative = under; positive = over. N/A = no positive estimate. Cell tooltips list contributing jobs."
+    Next columnIndex
+End Sub
+
 Public Sub ApplyDashboardDetailFormatting(ByVal ws As Worksheet)
-    ws.Range("F17:K28").NumberFormat = "#,##0.00"
-    ws.Range("L17:M28").NumberFormat = "#,##0"
-    ws.Range("N17:O28").NumberFormat = "+0.00%;-0.00%;0.00%"
-    ws.Range("T17:U28").NumberFormat = "#,##0"
-    ws.Range("V17:W28").NumberFormat = "m/d/yyyy"
+    Dim lastRow As Long
+
+    lastRow = DashboardScoreboardTitleRow() - 2
+    If lastRow < 17 Then Exit Sub
+    ws.Range("F17:K" & CStr(lastRow)).NumberFormat = "#,##0.00"
+    ws.Range("L17:M" & CStr(lastRow)).NumberFormat = "#,##0"
+    ws.Range("N17:O" & CStr(lastRow)).NumberFormat = "+0.00%;-0.00%;0.00%"
+    ws.Range("T17:U" & CStr(lastRow)).NumberFormat = "#,##0"
+    ws.Range("V17:W" & CStr(lastRow)).NumberFormat = "m/d/yyyy"
 End Sub
 
 Public Sub ApplyDashboardComments()
@@ -446,10 +484,8 @@ Public Sub ApplyDashboardComments()
     SetCellComment ws.Range("H11"), "Actual Hours" & vbLf & "Sum of Actual Packing Minutes divided by 60."
     SetCellComment ws.Range("J11"), "Variance Hours" & vbLf & "Actual Hours minus allocated Estimated Hours. Positive = over estimate; negative = under estimate."
     SetCellComment ws.Range("L11"), "Over Target Jobs" & vbLf & "Distinct jobs where actual packing minutes exceed estimated packing minutes."
-    SetCellComment ws.Range("N11"), "Variance %" & vbLf & "(Total Actual Hours - total allocated Estimated Hours) / total allocated Estimated Hours across ALL filtered rows, not an average of row percentages or the 12-row preview. Negative = under; positive = over; 0% = on estimate. Zero actual is -100%. N/A = no positive estimate. Actual-only hours are included in total actual."
-    SetCellComment ws.Range("B15"), "Packing Detail Grid" & vbLf & "Dashboard preview of the active result set directly below the KPI arena, ordered to mirror the KPI subjects first."
-    SetCellComment ws.Range("B30"), "Work Center Scoreboard" & vbLf & "All filtered rows grouped by work center. Estimates allocated by share of job actual time; variance = actual minus allocated estimate; variance % = group variance / group estimate. Negative = under; positive = over. N/A = no positive estimate. Cell tooltips list contributing jobs."
-    SetCellComment ws.Range("J30"), "Employee Scoreboard" & vbLf & "All filtered rows grouped by employee. Estimates allocated by share of job actual time, not independent employee budgets. Variance = actual minus allocated estimate; variance % = group variance / group estimate. Negative = under; positive = over. N/A = no positive estimate. Cell tooltips list contributing jobs."
+    SetCellComment ws.Range("N11"), "Variance %" & vbLf & "(Total Actual Hours - total allocated Estimated Hours) / total allocated Estimated Hours across ALL filtered rows, not an average of row percentages. Negative = under; positive = over; 0% = on estimate. Zero actual is -100%. N/A = no positive estimate. Actual-only hours are included in total actual."
+    SetCellComment ws.Range("B15"), "Packing Detail Grid" & vbLf & "All rows in the active result set, ordered to mirror the KPI subjects first. Multiple employee/date/work-center rows may belong to the same job. Scoreboards move below the complete grid."
 End Sub
 
 Private Sub SetupKpiCard(ByVal targetRange As Range, ByVal titleText As String, ByVal valueText As String)

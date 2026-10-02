@@ -14,6 +14,13 @@ Dim builtWorkbookPath
 Dim dialogWatchCommand
 Dim failureCount
 Dim tooltipCell
+Dim standaloneFolder
+Dim standaloneWorkbookPath
+Dim sqlSourceStream
+Dim sqlSourceText
+Dim standaloneFilesOnly
+Dim scoreboardScrollRow
+Dim dynamicGridResult
 
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
@@ -37,10 +44,26 @@ If shell.Run("cscript //nologo ""C:\dev\STLPackingPerformanceReport\scripts\buil
 End If
 
 WriteLog "Opening workbook"
+standaloneFolder = fso.BuildPath(fso.GetSpecialFolder(2), "packing-report-" & fso.GetTempName)
+EnsureFolder standaloneFolder
+standaloneWorkbookPath = fso.BuildPath(standaloneFolder, fso.GetFileName(builtWorkbookPath))
+Err.Clear
+fso.CopyFile builtWorkbookPath, standaloneWorkbookPath, True
+If Err.Number <> 0 Then
+    WriteLog "FAIL | Standalone distribution | Copy failed | " & Err.Description
+    WScript.Quit 1
+End If
+standaloneFilesOnly = fso.GetFolder(standaloneFolder).Files.Count = 1 And fso.GetFolder(standaloneFolder).SubFolders.Count = 0
 Set xl = CreateObject("Excel.Application")
 xl.Visible = True
 xl.DisplayAlerts = False
-Set wb = xl.Workbooks.Open(builtWorkbookPath)
+Err.Clear
+Set wb = xl.Workbooks.Open(standaloneWorkbookPath)
+If Err.Number <> 0 Then
+    WriteLog "FAIL | Standalone distribution | Open failed | " & Err.Description
+    xl.Quit
+    WScript.Quit 1
+End If
 Set wsDash = wb.Worksheets("Dashboard")
 xl.WindowState = -4137
 
@@ -48,6 +71,11 @@ runId = InvokeAction(xl, wb, "new-run-id", "e2e", "")
 WriteLog "Run ID: " & runId
 
 RecordPass wb, runId, "Workbook opens", "Open workbook and initialize", "Workbook opened for automation"
+AssertTrue wb, runId, "Standalone distribution", "Workbook is the only distributed file", standaloneFilesOnly And Not fso.FileExists(standaloneFolder & "\packing_estimated_vs_actual.sql") And Not fso.FileExists(standaloneFolder & "\sql\packing_estimated_vs_actual.sql"), "Before Excel creates its lock file, the folder contains only the workbook; all refresh and picker tests run without SQL sidecars"
+Set sqlSourceStream = fso.OpenTextFile("C:\dev\STLPackingPerformanceReport\packing_estimated_vs_actual.sql", 1)
+sqlSourceText = sqlSourceStream.ReadAll
+sqlSourceStream.Close
+AssertTrue wb, runId, "Standalone distribution", "Embedded SQL matches source", NormalizeSqlText(CStr(xl.Run(WorkbookMacro(wb, "modEmbeddedSql.PackingSqlText")))) = NormalizeSqlText(sqlSourceText), "Build must embed the authoritative source SQL without drift"
 AssertTrue wb, runId, "Branding", "Workbook filename matches", wb.Name = "STLPackingPerformanceReport.xlsm", "Workbook should use the new filename"
 AssertTrue wb, runId, "Branding", "Dashboard title matches", CStr(wsDash.Range("B2").Value) = "Packing Performance Report", "Sheet title bar should use the display title"
 AssertTrue wb, runId, "Branding", "Current variance build loaded", wsDash.ListObjects("tblEmployeeSummary").ListColumns.Count = 6 And wsDash.ListObjects("tblEmployeeSummary").HeaderRowRange.Cells(1, 6).Value = "Variance %", "Six columns with variance percentage and no row count"
@@ -64,6 +92,14 @@ AssertContains wb, runId, "Workbook opens", "Dashboard sheet active on open", CS
 AssertContains wb, runId, "Workbook opens", "Dashboard top cell selected on open", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestActiveCellAddress"))), "B2", "Workbook should open at the top of Dashboard"
 AssertTrue wb, runId, "Workbook opens", "Dashboard scroll row reset on open", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestActiveWindowScrollRow"))) = 1, "Dashboard should open scrolled to row 1"
 AssertTrue wb, runId, "Workbook opens", "Dashboard scroll column reset on open", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestActiveWindowScrollColumn"))) = 1, "Dashboard should open scrolled to column 1"
+dynamicGridResult = False
+Err.Clear
+dynamicGridResult = xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestDashboardGridResize"))
+If Err.Number <> 0 Then
+    RecordFail wb, runId, "Dynamic grid", "Resize macro executes", Err.Description
+Else
+    AssertTrue wb, runId, "Dynamic grid", "Grid grows shrinks and handles empty results", CBool(dynamicGridResult), "17, 3, 0, and 2 rows must resize exactly, retain alignment, and clear old rows, titles, and tooltips"
+End If
 RecordActionResult wb, runId, "Initialize", "InitializeReportWorkbook", InvokeAction(xl, wb, "initialize", "", ""), "Workbook initializer completed"
 AssertContains wb, runId, "Initialize", "Dashboard sheet active after initialize", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestCurrentSheetName"))), "Dashboard", "Initializer should leave workbook on Dashboard"
 AssertContains wb, runId, "Initialize", "Dashboard top cell selected after initialize", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestActiveCellAddress"))), "B2", "Initializer should leave Dashboard focused at the top"
@@ -160,12 +196,13 @@ AssertContains wb, runId, "Reset workflow", "Dashboard top cell selected before 
 
 wb.Save
 CaptureSheetWindowPng xl, wb.Worksheets("Dashboard"), exportRoot & "\dashboard.png", 1
-CaptureSheetWindowPng xl, wb.Worksheets("Dashboard"), exportRoot & "\scoreboards.png", 29
+scoreboardScrollRow = wsDash.ListObjects("tblEmployeeSummary").Range.Row - 2
+CaptureSheetWindowPng xl, wb.Worksheets("Dashboard"), exportRoot & "\scoreboards.png", scoreboardScrollRow
 Set tooltipCell = wsDash.ListObjects("tblEmployeeSummary").DataBodyRange.Cells(1, 6)
-tooltipCell.Comment.Shape.Left = wsDash.Range("J36").Left
-tooltipCell.Comment.Shape.Top = wsDash.Range("J36").Top
+tooltipCell.Comment.Shape.Left = wsDash.Cells(scoreboardScrollRow + 7, 10).Left
+tooltipCell.Comment.Shape.Top = wsDash.Cells(scoreboardScrollRow + 7, 10).Top
 tooltipCell.Comment.Visible = True
-CaptureSheetWindowPng xl, wb.Worksheets("Dashboard"), exportRoot & "\scoreboard-tooltip.png", 29
+CaptureSheetWindowPng xl, wb.Worksheets("Dashboard"), exportRoot & "\scoreboard-tooltip.png", scoreboardScrollRow
 tooltipCell.Comment.Visible = False
 CaptureSheetWindowPng xl, wb.Worksheets("Packing Detail"), exportRoot & "\packing-detail.png", 1
 CaptureSheetWindowPng xl, wb.Worksheets("Query Log"), exportRoot & "\query-log.png", 1
@@ -180,6 +217,15 @@ RecordActionResult wb, runId, "Save workflow", "Restore dashboard after screensh
 wb.Save
 wb.Close False
 xl.Quit
+If failureCount = 0 Then
+    Err.Clear
+    fso.CopyFile standaloneWorkbookPath, builtWorkbookPath, True
+    If Err.Number <> 0 Then
+        failureCount = failureCount + 1
+        WriteLog "FAIL | Standalone distribution | Copy verified workbook back failed | " & Err.Description
+    End If
+End If
+fso.DeleteFolder standaloneFolder, True
 
 WriteLog "E2E completed"
 If failureCount > 0 Then
@@ -187,6 +233,14 @@ If failureCount > 0 Then
     WScript.Quit 1
 End If
 WScript.Echo "OK:" & exportRoot
+
+Function NormalizeSqlText(sqlText)
+    sqlText = Replace(sqlText, vbCr, "")
+    Do While Right(sqlText, 1) = vbLf
+        sqlText = Left(sqlText, Len(sqlText) - 1)
+    Loop
+    NormalizeSqlText = sqlText
+End Function
 
 Function InvokeAction(excelApp, workbookObj, actionName, arg1, arg2)
     On Error Resume Next
@@ -203,6 +257,8 @@ Sub AssertPackingMath(workbookObj, currentRunId, scenarioName)
     Set dashboard = workbookObj.Worksheets("Dashboard")
     Set detailTable = workbookObj.Worksheets("Packing Detail").ListObjects("tblPackingDetail")
     detailValues = detailTable.DataBodyRange.Value
+    AssertTrue workbookObj, currentRunId, scenarioName, "Dashboard contains every detail row", workbookObj.Names("tblDashboardDetail").RefersToRange.Rows.Count - 1 = detailTable.ListRows.Count, "No 12-row cap or padded rows"
+    AssertTrue workbookObj, currentRunId, scenarioName, "Scoreboards follow complete grid", dashboard.ListObjects("tblWorkCenterSummary").Range.Row = 19 + detailTable.ListRows.Count And dashboard.ListObjects("tblEmployeeSummary").Range.Row = 19 + detailTable.ListRows.Count, "Scoreboards must move below all result rows"
     detailValid = True
     estimated = 0
     actual = 0

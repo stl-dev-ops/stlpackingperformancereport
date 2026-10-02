@@ -52,8 +52,8 @@ Public Sub RefreshReport()
     WriteMatrixToTable EnsureWorksheet(SHEET_PACKING_DETAIL), TABLE_PACKING_DETAIL, "A1", headers, data
     ApplyPackingTableFormatting
     WriteDashboardDetailGrid EnsureWorksheet(SHEET_DASHBOARD), dashboardDetailHeaders, dashboardDetailPreview
-    WriteMatrixToTable EnsureWorksheet(SHEET_DASHBOARD), TABLE_WORKCENTER_SUMMARY, "B31", workCenterHeaders, workCenterSummary
-    WriteMatrixToTable EnsureWorksheet(SHEET_DASHBOARD), TABLE_EMPLOYEE_SUMMARY, "J31", employeeHeaders, employeeSummary
+    WriteMatrixToTable EnsureWorksheet(SHEET_DASHBOARD), TABLE_WORKCENTER_SUMMARY, "B" & CStr(DashboardScoreboardTitleRow() + 1), workCenterHeaders, workCenterSummary
+    WriteMatrixToTable EnsureWorksheet(SHEET_DASHBOARD), TABLE_EMPLOYEE_SUMMARY, "J" & CStr(DashboardScoreboardTitleRow() + 1), employeeHeaders, employeeSummary
     ApplyDashboardDetailFormatting EnsureWorksheet(SHEET_DASHBOARD)
     ApplySummaryTableFormatting EnsureWorksheet(SHEET_DASHBOARD), TABLE_WORKCENTER_SUMMARY
     ApplySummaryTableFormatting EnsureWorksheet(SHEET_DASHBOARD), TABLE_EMPLOYEE_SUMMARY
@@ -201,8 +201,8 @@ Private Sub EnsureDataSheets()
     WriteMatrixToTable EnsureWorksheet(SHEET_INTERACTION_LOG), TABLE_INTERACTION_LOG, "A1", interactionHeaders, Empty
     WriteMatrixToTable EnsureWorksheet(SHEET_TEST_RESULTS), TABLE_TEST_RESULTS, "A1", testHeaders, Empty
     WriteDashboardDetailGrid EnsureWorksheet(SHEET_DASHBOARD), dashboardDetailHeaders, Empty
-    WriteMatrixToTable EnsureWorksheet(SHEET_DASHBOARD), TABLE_WORKCENTER_SUMMARY, "B31", summaryHeaders, Empty
-    WriteMatrixToTable EnsureWorksheet(SHEET_DASHBOARD), TABLE_EMPLOYEE_SUMMARY, "J31", summaryHeaders, Empty
+    WriteMatrixToTable EnsureWorksheet(SHEET_DASHBOARD), TABLE_WORKCENTER_SUMMARY, "B" & CStr(DashboardScoreboardTitleRow() + 1), summaryHeaders, Empty
+    WriteMatrixToTable EnsureWorksheet(SHEET_DASHBOARD), TABLE_EMPLOYEE_SUMMARY, "J" & CStr(DashboardScoreboardTitleRow() + 1), summaryHeaders, Empty
 End Sub
 
 Public Sub FocusDashboardTop()
@@ -234,13 +234,11 @@ Private Function GetDashboardDetailHeaders() As Variant
 End Function
 
 Private Function BuildDashboardDetailPreview(ByVal dataMatrix As Variant) As Variant
-    Const MAX_PREVIEW_ROWS As Long = 12
     Dim previewRows As Long
     Dim rowIndex As Long
     Dim result() As Variant
 
     previewRows = MatrixRowCount(dataMatrix)
-    If previewRows > MAX_PREVIEW_ROWS Then previewRows = MAX_PREVIEW_ROWS
     If previewRows <= 0 Then Exit Function
 
     ReDim result(1 To previewRows, 1 To 13)

@@ -68,6 +68,22 @@ For Each file In fso.GetFolder(folder).Files
     End If
 Next
 
+Err.Clear
+codeText = BuildEmbeddedSqlCode(fso.BuildPath(fso.GetParentFolderName(folder), "packing_estimated_vs_actual.sql"))
+If Err.Number = 0 Then
+    Set comp = vbProj.VBComponents.Add(1)
+    comp.Name = "modEmbeddedSql"
+    comp.CodeModule.AddFromString codeText
+End If
+If Err.Number <> 0 Then
+    WriteLog "ERR_EMBED_SQL:" & Err.Number & ":" & Err.Description
+    WScript.Echo "ERR_EMBED_SQL:" & Err.Number & ":" & Err.Description
+    wb.Close False
+    xl.Quit
+    WScript.Quit 1
+End If
+WriteLog "Embedded packing SQL"
+
 codeText = ReadCodeWithoutAttributes(fso.BuildPath(folder, "ThisWorkbook.cls"))
 vbProj.VBComponents("ThisWorkbook").CodeModule.DeleteLines 1, vbProj.VBComponents("ThisWorkbook").CodeModule.CountOfLines
 vbProj.VBComponents("ThisWorkbook").CodeModule.AddFromString codeText
@@ -118,6 +134,21 @@ WScript.Echo "OK:" & outPath
 wb.Close False
 xl.Quit
 WriteLog "Done"
+
+Function BuildEmbeddedSqlCode(filePath)
+    Dim ts
+    Dim output
+
+    Set ts = fso.OpenTextFile(filePath, 1)
+    output = "Option Explicit" & vbCrLf & _
+        "Public Function PackingSqlText() As String" & vbCrLf & _
+        "    Dim sqlText As String" & vbCrLf
+    Do Until ts.AtEndOfStream
+        output = output & "    sqlText = sqlText & """ & Replace(ts.ReadLine, """", """""") & """ & vbCrLf" & vbCrLf
+    Loop
+    ts.Close
+    BuildEmbeddedSqlCode = output & "    PackingSqlText = sqlText" & vbCrLf & "End Function"
+End Function
 
 Function ReadCodeWithoutAttributes(filePath)
     Dim ts
