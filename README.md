@@ -1,6 +1,6 @@
-# Packing Estimated vs Actual Report
+# STLPackingPerformanceReport
 
-Workbook location: `C:\dev\STLPackingPerformanceReport\PackingEstimatedVsActualReport.xlsm`
+Workbook location: `C:\dev\STLPackingPerformanceReport\STLPackingPerformanceReport.xlsm`
 
 Data source:
 - CERM SQL Server via trusted connection to `STL-SQL1\CRMDB`, database `sqlb00`
@@ -19,10 +19,19 @@ Configuration behavior:
 
 Dashboard behavior:
 - Shape-based controls sit across the top of the dashboard for date filters, text filters, refresh, clear, and workbook navigation.
-- KPI cards summarize rows, jobs, customers, estimated hours, actual hours, variance, over-target jobs, and average ratio.
+- KPI cards summarize jobs, customers, allocated estimated hours, actual hours, variance, over-target jobs, and Variance %.
 - Dashboard summary grids aggregate the live result set by work center and employee.
 - KPI cards and summary sections include tooltip comments to explain each metric.
 - Interaction and test instrumentation writes to dedicated `Interaction Log` and `Test Results` sheets.
+
+Calculation rules:
+- The view repeats the full job estimate on each employee/date/work-center row. The report allocates it using `EstimatedPackingMinutes * ActualShareOfJob` so it is not counted repeatedly. Estimate-only jobs retain their full estimate.
+- Variance is actual minus allocated estimate. Positive means over estimate; negative means under estimate.
+- Variance % is (total actual - total allocated estimate) divided by total allocated estimate. 0% is on estimate; +20% is 20% over; -20% is 20% under. No positive estimate displays `N/A`; zero actual with a positive estimate is -100%.
+- The overall percentage uses ALL filtered rows, not the dashboard's 12-row preview and not an unweighted average of row, employee, or work-center percentages. Zero actual rows and actual-only hours are included.
+- Each scoreboard uses the same calculation within its group. Employee estimates are proportional allocations, not independently planned employee budgets.
+- Scoreboards show the dimension, distinct jobs, estimated hours, actual hours, variance hours, and Variance %, without row counts. Each data cell has a donor-style tooltip with its formula, displayed value, and contributing job IDs with per-job hours and variance percentages. Tooltips are rebuilt from all filtered detail rows on each refresh.
+- Filters still limit the report. Allocation shares use lifetime job actual time, so clearing filters includes the complete job while a date/employee subset includes only its allocated portion.
 
 Refresh process:
 1. Open the workbook with macros enabled.
@@ -34,7 +43,7 @@ Refresh process:
 
 Build process:
 - Run `cscript //nologo .\scripts\build-workbook.vbs` from `C:\dev\STLPackingPerformanceReport`.
-- The script imports the checked-in VBA modules into a new workbook, runs the initializer, and saves `PackingEstimatedVsActualReport.xlsm`.
+- The script imports the checked-in VBA modules into a new workbook, runs the initializer, and saves `STLPackingPerformanceReport.xlsm`.
 
 Automation process:
 - Run `cscript //nologo .\scripts\run-e2e.vbs` from `C:\dev\STLPackingPerformanceReport`.

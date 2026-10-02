@@ -113,13 +113,32 @@ Public Function TestShapeExists(ByVal sheetName As String, ByVal shapeName As St
     TestShapeExists = ShapeExists(EnsureWorksheet(sheetName), shapeName)
 End Function
 
+Public Function TestShapeText(ByVal sheetName As String, ByVal shapeName As String) As String
+    Dim ws As Worksheet
+    Dim shp As Shape
+
+    Set ws = EnsureWorksheet(sheetName)
+    On Error Resume Next
+    Set shp = ws.Shapes(shapeName)
+    On Error GoTo 0
+    If shp Is Nothing Then Exit Function
+    TestShapeText = shp.TextFrame.Characters.Text
+End Function
+
 Public Function TestTableRowCount(ByVal sheetName As String, ByVal tableName As String) As Long
     Dim lo As ListObject
+    Dim gridRange As Range
 
     On Error Resume Next
     Set lo = EnsureWorksheet(sheetName).ListObjects(tableName)
     On Error GoTo 0
-    If lo Is Nothing Then Exit Function
+    If lo Is Nothing Then
+        If tableName = TABLE_DASHBOARD_DETAIL Then
+            Set gridRange = ThisWorkbook.Names(tableName).RefersToRange
+            TestTableRowCount = gridRange.Rows.Count - 1
+        End If
+        Exit Function
+    End If
     If lo.DataBodyRange Is Nothing Then
         TestTableRowCount = 0
     Else
@@ -137,6 +156,22 @@ End Function
 
 Public Function TestCurrentSheetName() As String
     TestCurrentSheetName = ActiveSheet.Name
+End Function
+
+Public Function TestActiveCellAddress() As String
+    TestActiveCellAddress = ActiveCell.Address(False, False)
+End Function
+
+Public Function TestActiveWindowScrollRow() As Long
+    On Error Resume Next
+    TestActiveWindowScrollRow = ActiveWindow.ScrollRow
+    On Error GoTo 0
+End Function
+
+Public Function TestActiveWindowScrollColumn() As Long
+    On Error Resume Next
+    TestActiveWindowScrollColumn = ActiveWindow.ScrollColumn
+    On Error GoTo 0
 End Function
 
 Public Function TestCommentExists(ByVal sheetName As String, ByVal cellAddress As String) As Boolean
@@ -167,4 +202,83 @@ Public Function TestKpiNumericValue(ByVal cellAddress As String) As Double
     valueText = Replace(valueText, "x", "")
     valueText = Replace(valueText, "%", "")
     If IsNumeric(valueText) Then TestKpiNumericValue = CDbl(valueText)
+End Function
+
+Public Function TestDashboardLayoutIssueCount() As Long
+    TestDashboardLayoutIssueCount = CountDashboardLayoutIssues(EnsureWorksheet(SHEET_DASHBOARD))
+End Function
+
+Public Function TestDashboardGridAligned() As Boolean
+    Dim ws As Worksheet
+    Dim gridRange As Range
+    Dim kpiRange As Range
+    Dim fieldRange As Range
+    Dim fieldIndex As Long
+    Dim rowIndex As Long
+
+    Set ws = EnsureWorksheet(SHEET_DASHBOARD)
+    Set gridRange = ThisWorkbook.Names(TABLE_DASHBOARD_DETAIL).RefersToRange
+    For fieldIndex = 0 To 6
+        Set kpiRange = ws.Cells(11, 2 + fieldIndex * 2).MergeArea
+        For rowIndex = 16 To 16 + gridRange.Rows.Count - 1
+            Set fieldRange = ws.Cells(rowIndex, 2 + fieldIndex * 2).MergeArea
+            If fieldRange.Columns.Count <> 2 Then Exit Function
+            If Abs(fieldRange.Left - kpiRange.Left) > 0.1 Then Exit Function
+            If Abs(fieldRange.Width - kpiRange.Width) > 0.1 Then Exit Function
+        Next rowIndex
+    Next fieldIndex
+    TestDashboardGridAligned = True
+End Function
+
+Private Function CountDashboardLayoutIssues(ByVal ws As Worksheet) As Long
+    Dim i As Long
+    Dim j As Long
+    Dim shapeA As Shape
+    Dim shapeB As Shape
+    Dim listObjectA As ListObject
+    Dim listObjectB As ListObject
+
+    For i = 1 To ws.Shapes.Count
+        Set shapeA = ws.Shapes(i)
+        If IsAuditedDashboardShape(shapeA) Then
+            For j = i + 1 To ws.Shapes.Count
+                Set shapeB = ws.Shapes(j)
+                If IsAuditedDashboardShape(shapeB) Then
+                    If ShapesOverlap(shapeA, shapeB) Then CountDashboardLayoutIssues = CountDashboardLayoutIssues + 1
+                End If
+            Next j
+
+            For Each listObjectA In ws.ListObjects
+                If ShapeOverlapsRange(shapeA, listObjectA.Range) Then CountDashboardLayoutIssues = CountDashboardLayoutIssues + 1
+            Next listObjectA
+        End If
+    Next i
+
+    For i = 1 To ws.ListObjects.Count
+        Set listObjectA = ws.ListObjects(i)
+        For j = i + 1 To ws.ListObjects.Count
+            Set listObjectB = ws.ListObjects(j)
+            If Not Application.Intersect(listObjectA.Range, listObjectB.Range) Is Nothing Then
+                CountDashboardLayoutIssues = CountDashboardLayoutIssues + 1
+            End If
+        Next j
+    Next i
+End Function
+
+Private Function IsAuditedDashboardShape(ByVal shp As Shape) As Boolean
+    IsAuditedDashboardShape = (Left$(LCase$(shp.Name), 7) = "ppr_btn")
+End Function
+
+Private Function ShapesOverlap(ByVal shapeA As Shape, ByVal shapeB As Shape) As Boolean
+    ShapesOverlap = Not (shapeA.Left + shapeA.Width <= shapeB.Left Or _
+                         shapeB.Left + shapeB.Width <= shapeA.Left Or _
+                         shapeA.Top + shapeA.Height <= shapeB.Top Or _
+                         shapeB.Top + shapeB.Height <= shapeA.Top)
+End Function
+
+Private Function ShapeOverlapsRange(ByVal shp As Shape, ByVal targetRange As Range) As Boolean
+    ShapeOverlapsRange = Not (shp.Left + shp.Width <= targetRange.Left Or _
+                              targetRange.Left + targetRange.Width <= shp.Left Or _
+                              shp.Top + shp.Height <= targetRange.Top Or _
+                              targetRange.Top + targetRange.Height <= shp.Top)
 End Function

@@ -4,8 +4,10 @@ Option Explicit
 Public Sub InitializeReportWorkbook()
     EnsureBaseSheets
     EnsureConfigurationSheet
+    ApplyDefaultFilters
     SetupDashboardVisuals
     EnsureDataSheets
+    FocusDashboardTop
     SetConfigValue NAME_VERSION, REPORT_VERSION
     UpdateDashboardStatus "Ready", RGB(255, 255, 255)
     AppendInteractionLog "InitializeReportWorkbook", "Success", "Workbook shell ready", DescribeCurrentFilters()
@@ -18,8 +20,10 @@ Public Sub RefreshReport()
     Dim data As Variant
     Dim workCenterHeaders As Variant
     Dim employeeHeaders As Variant
+    Dim dashboardDetailHeaders As Variant
     Dim workCenterSummary As Variant
     Dim employeeSummary As Variant
+    Dim dashboardDetailPreview As Variant
     Dim t0 As Double
     Dim durationMs As Double
     Dim rowCount As Long
@@ -42,13 +46,19 @@ Public Sub RefreshReport()
     rowCount = MatrixRowCount(data)
     workCenterSummary = BuildDimensionSummary(data, 8, "Work Center", workCenterHeaders)
     employeeSummary = BuildDimensionSummary(data, 9, "Employee", employeeHeaders)
+    dashboardDetailHeaders = GetDashboardDetailHeaders()
+    dashboardDetailPreview = BuildDashboardDetailPreview(data)
 
     WriteMatrixToTable EnsureWorksheet(SHEET_PACKING_DETAIL), TABLE_PACKING_DETAIL, "A1", headers, data
     ApplyPackingTableFormatting
+    WriteDashboardDetailGrid EnsureWorksheet(SHEET_DASHBOARD), dashboardDetailHeaders, dashboardDetailPreview
     WriteMatrixToTable EnsureWorksheet(SHEET_DASHBOARD), TABLE_WORKCENTER_SUMMARY, "B31", workCenterHeaders, workCenterSummary
-    WriteMatrixToTable EnsureWorksheet(SHEET_DASHBOARD), TABLE_EMPLOYEE_SUMMARY, "I31", employeeHeaders, employeeSummary
+    WriteMatrixToTable EnsureWorksheet(SHEET_DASHBOARD), TABLE_EMPLOYEE_SUMMARY, "J31", employeeHeaders, employeeSummary
+    ApplyDashboardDetailFormatting EnsureWorksheet(SHEET_DASHBOARD)
     ApplySummaryTableFormatting EnsureWorksheet(SHEET_DASHBOARD), TABLE_WORKCENTER_SUMMARY
     ApplySummaryTableFormatting EnsureWorksheet(SHEET_DASHBOARD), TABLE_EMPLOYEE_SUMMARY
+    ApplySummaryJobComments TABLE_WORKCENTER_SUMMARY, data, 8
+    ApplySummaryJobComments TABLE_EMPLOYEE_SUMMARY, data, 9
     UpdateDashboardMetrics data
     UpdateLastRefreshStamp
     AppendQueryLog "Success", rowCount, durationMs, DescribeCurrentFilters(), ""
@@ -97,18 +107,10 @@ Public Sub EditEmployeeLike()
 End Sub
 
 Public Sub ClearAllFilters()
-    SetConfigValue NAME_ESTIMATE_DATE_FROM, Empty
-    SetConfigValue NAME_ESTIMATE_DATE_TO, Empty
-    SetConfigValue NAME_DELIVERY_DATE_FROM, Empty
-    SetConfigValue NAME_DELIVERY_DATE_TO, Empty
-    SetConfigValue NAME_ACTUAL_WORK_DATE_FROM, Empty
-    SetConfigValue NAME_ACTUAL_WORK_DATE_TO, Empty
-    SetConfigValue NAME_CUSTOMER_LIKE, ""
-    SetConfigValue NAME_WORK_CENTER_LIKE, ""
-    SetConfigValue NAME_EMPLOYEE_LIKE, ""
+    ApplyDefaultFilters
     RefreshDashboardSelectionCaptions
-    UpdateDashboardStatus "Filters cleared. Click Refresh to apply.", RGB(255, 255, 255)
-    AppendInteractionLog "ClearAllFilters", "Success", "All filters cleared", DescribeCurrentFilters()
+    UpdateDashboardStatus "Defaults restored. Click Refresh to apply.", RGB(255, 255, 255)
+    AppendInteractionLog "ClearAllFilters", "Success", "Default filters restored", DescribeCurrentFilters()
 End Sub
 
 Public Sub GoToConfigurationSheet()
@@ -118,6 +120,7 @@ End Sub
 
 Public Sub GoToDashboardSheet()
     EnsureWorksheet(SHEET_DASHBOARD).Activate
+    FocusDashboardTop
     AppendInteractionLog "Navigation", "Success", "Dashboard", DescribeCurrentFilters()
 End Sub
 
@@ -162,10 +165,10 @@ Private Sub EnsureConfigurationSheet()
     WriteConfigRow ws, 5, "Estimate Date To", NAME_ESTIMATE_DATE_TO, "", "Optional inclusive upper bound for Estimate Date."
     WriteConfigRow ws, 6, "Delivery Date From", NAME_DELIVERY_DATE_FROM, "", "Optional inclusive lower bound for Delivery Date."
     WriteConfigRow ws, 7, "Delivery Date To", NAME_DELIVERY_DATE_TO, "", "Optional inclusive upper bound for Delivery Date."
-    WriteConfigRow ws, 8, "Actual Work Date From", NAME_ACTUAL_WORK_DATE_FROM, "", "Optional inclusive lower bound for Actual Work Date."
-    WriteConfigRow ws, 9, "Actual Work Date To", NAME_ACTUAL_WORK_DATE_TO, "", "Optional inclusive upper bound for Actual Work Date."
+    WriteConfigRow ws, 8, "Actual Work Date From", NAME_ACTUAL_WORK_DATE_FROM, LastWeekStartDate(), "Default inclusive lower bound for Actual Work Date (last week)."
+    WriteConfigRow ws, 9, "Actual Work Date To", NAME_ACTUAL_WORK_DATE_TO, LastWeekEndDate(), "Default inclusive upper bound for Actual Work Date (last week)."
     WriteConfigRow ws, 10, "Customer Like", NAME_CUSTOMER_LIKE, "", "Optional SQL LIKE filter. Example: %Acme%"
-    WriteConfigRow ws, 11, "Work Center Like", NAME_WORK_CENTER_LIKE, "", "Optional SQL LIKE filter."
+    WriteConfigRow ws, 11, "Work Center Like", NAME_WORK_CENTER_LIKE, "Shipping,Shipping 2,Shipping 3", "Default work center subset for dashboard startup."
     WriteConfigRow ws, 12, "Employee Like", NAME_EMPLOYEE_LIKE, "", "Optional SQL LIKE filter."
     WriteConfigRow ws, 13, "Server Name", NAME_SERVER_NAME, "STL-SQL1\CRMDB", "Trusted connection SQL Server name."
     WriteConfigRow ws, 14, "Database Name", NAME_DATABASE_NAME, "sqlb00", "Initial catalog for the report query."
@@ -184,20 +187,85 @@ Private Sub EnsureDataSheets()
     Dim interactionHeaders As Variant
     Dim testHeaders As Variant
     Dim summaryHeaders As Variant
+    Dim dashboardDetailHeaders As Variant
 
-    detailHeaders = ArrayFromCsv("Job ID,Estimate Date,Delivery Date,Customer,Job Description,Order Quantity,Actual Work Date,Work Center,Employee,Estimated Packing Minutes,Actual Packing Minutes,Total Actual Packing Minutes,Share of Job Actual Time,Packing Minutes Variance,Packing Time Ratio,Packing Status")
+    detailHeaders = ArrayFromCsv("Job ID,Estimate Date,Delivery Date,Customer,Job Description,Order Quantity,Actual Work Date,Work Center,Employee,Estimated Packing Minutes,Actual Packing Minutes,Total Actual Packing Minutes,Share of Job Actual Time,Packing Minutes Variance,Variance %,Packing Status")
     logHeaders = ArrayFromCsv("Run At,Status,Rows,Duration Ms,Server,Database,Details,Filters")
     interactionHeaders = NormalizeHeaderArray(Array("Timestamp", "WindowsUsername", "EventName", "Status", "Details", "SelectionContext", "WorkbookVersion"))
     testHeaders = NormalizeHeaderArray(Array("RunId", "Timestamp", "Scenario", "StepName", "Status", "Details", "ArtifactPath"))
-    summaryHeaders = ArrayFromCsv("Dimension,Rows,Jobs,Est Hrs,Act Hrs,Var Hrs")
+    summaryHeaders = ArrayFromCsv("Dimension,Jobs,Est Hrs,Act Hrs,Var Hrs,Variance %")
+    dashboardDetailHeaders = GetDashboardDetailHeaders()
 
     WriteMatrixToTable EnsureWorksheet(SHEET_PACKING_DETAIL), TABLE_PACKING_DETAIL, "A1", detailHeaders, Empty
     WriteMatrixToTable EnsureWorksheet(SHEET_QUERY_LOG), TABLE_QUERY_LOG, "A1", logHeaders, Empty
     WriteMatrixToTable EnsureWorksheet(SHEET_INTERACTION_LOG), TABLE_INTERACTION_LOG, "A1", interactionHeaders, Empty
     WriteMatrixToTable EnsureWorksheet(SHEET_TEST_RESULTS), TABLE_TEST_RESULTS, "A1", testHeaders, Empty
+    WriteDashboardDetailGrid EnsureWorksheet(SHEET_DASHBOARD), dashboardDetailHeaders, Empty
     WriteMatrixToTable EnsureWorksheet(SHEET_DASHBOARD), TABLE_WORKCENTER_SUMMARY, "B31", summaryHeaders, Empty
-    WriteMatrixToTable EnsureWorksheet(SHEET_DASHBOARD), TABLE_EMPLOYEE_SUMMARY, "I31", summaryHeaders, Empty
+    WriteMatrixToTable EnsureWorksheet(SHEET_DASHBOARD), TABLE_EMPLOYEE_SUMMARY, "J31", summaryHeaders, Empty
 End Sub
+
+Public Sub FocusDashboardTop()
+    Dim ws As Worksheet
+
+    Set ws = EnsureWorksheet(SHEET_DASHBOARD)
+    ws.Activate
+    ws.Range("B2").Select
+    On Error Resume Next
+    ActiveWindow.ScrollRow = 1
+    ActiveWindow.ScrollColumn = 1
+    On Error GoTo 0
+End Sub
+
+Private Sub ApplyDefaultFilters()
+    SetConfigValue NAME_ESTIMATE_DATE_FROM, Empty
+    SetConfigValue NAME_ESTIMATE_DATE_TO, Empty
+    SetConfigValue NAME_DELIVERY_DATE_FROM, Empty
+    SetConfigValue NAME_DELIVERY_DATE_TO, Empty
+    SetConfigValue NAME_ACTUAL_WORK_DATE_FROM, LastWeekStartDate()
+    SetConfigValue NAME_ACTUAL_WORK_DATE_TO, LastWeekEndDate()
+    SetConfigValue NAME_CUSTOMER_LIKE, ""
+    SetConfigValue NAME_WORK_CENTER_LIKE, "Shipping,Shipping 2,Shipping 3"
+    SetConfigValue NAME_EMPLOYEE_LIKE, ""
+End Sub
+
+Private Function GetDashboardDetailHeaders() As Variant
+    GetDashboardDetailHeaders = ArrayFromCsv("Jobs,Customers,Estimated Hours,Actual Hours,Variance Hours,Over Target Jobs,Variance %,Packing Status,Job Description,Order Quantity,Actual Work Date,Work Center,Employee")
+End Function
+
+Private Function BuildDashboardDetailPreview(ByVal dataMatrix As Variant) As Variant
+    Const MAX_PREVIEW_ROWS As Long = 12
+    Dim previewRows As Long
+    Dim rowIndex As Long
+    Dim result() As Variant
+
+    previewRows = MatrixRowCount(dataMatrix)
+    If previewRows > MAX_PREVIEW_ROWS Then previewRows = MAX_PREVIEW_ROWS
+    If previewRows <= 0 Then Exit Function
+
+    ReDim result(1 To previewRows, 1 To 13)
+    For rowIndex = 1 To previewRows
+        result(rowIndex, 1) = dataMatrix(rowIndex, 1)
+        result(rowIndex, 2) = dataMatrix(rowIndex, 4)
+        result(rowIndex, 3) = NzNumber(dataMatrix(rowIndex, 10)) / 60#
+        result(rowIndex, 4) = NzNumber(dataMatrix(rowIndex, 11)) / 60#
+        result(rowIndex, 5) = NzNumber(dataMatrix(rowIndex, 14)) / 60#
+        If NzNumber(dataMatrix(rowIndex, 11)) > NzNumber(dataMatrix(rowIndex, 10)) Then
+            result(rowIndex, 6) = 1
+        Else
+            result(rowIndex, 6) = 0
+        End If
+        result(rowIndex, 7) = PackingPercentage(NzNumber(dataMatrix(rowIndex, 11)), NzNumber(dataMatrix(rowIndex, 10)))
+        result(rowIndex, 8) = dataMatrix(rowIndex, 16)
+        result(rowIndex, 9) = dataMatrix(rowIndex, 5)
+        result(rowIndex, 10) = dataMatrix(rowIndex, 6)
+        result(rowIndex, 11) = dataMatrix(rowIndex, 7)
+        result(rowIndex, 12) = dataMatrix(rowIndex, 8)
+        result(rowIndex, 13) = dataMatrix(rowIndex, 9)
+    Next rowIndex
+
+    BuildDashboardDetailPreview = result
+End Function
 
 Private Sub WriteConfigRow(ByVal ws As Worksheet, ByVal rowIndex As Long, ByVal labelText As String, ByVal rangeName As String, ByVal defaultValue As Variant, ByVal noteText As String)
     ws.Cells(rowIndex, 1).Value = labelText
@@ -248,14 +316,13 @@ Private Function BuildDimensionSummary(ByVal dataMatrix As Variant, ByVal keyCol
     Dim result() As Variant
     Dim keyIndex As Long
 
-    headers = ArrayFromCsv(headerText & ",Rows,Jobs,Est Hrs,Act Hrs,Var Hrs")
+    headers = ArrayFromCsv(headerText & ",Jobs,Est Hrs,Act Hrs,Var Hrs,Variance %")
     Set stats = CreateObject("Scripting.Dictionary")
 
     For rowIndex = 1 To MatrixRowCount(dataMatrix)
         dimensionKey = NzText(dataMatrix(rowIndex, keyColumnIndex), "(Blank)")
         If Not stats.Exists(dimensionKey) Then
             Set detail = CreateObject("Scripting.Dictionary")
-            detail("Rows") = 0&
             Set detail("Jobs") = CreateObject("Scripting.Dictionary")
             detail("Estimated") = 0#
             detail("Actual") = 0#
@@ -264,7 +331,6 @@ Private Function BuildDimensionSummary(ByVal dataMatrix As Variant, ByVal keyCol
         End If
 
         Set detail = stats(dimensionKey)
-        detail("Rows") = CLng(detail("Rows")) + 1
         If Len(NzText(dataMatrix(rowIndex, 1))) > 0 Then detail("Jobs")(NzText(dataMatrix(rowIndex, 1))) = True
         detail("Estimated") = NzNumber(detail("Estimated")) + (NzNumber(dataMatrix(rowIndex, 10)) / 60#)
         detail("Actual") = NzNumber(detail("Actual")) + (NzNumber(dataMatrix(rowIndex, 11)) / 60#)
@@ -283,14 +349,99 @@ Private Function BuildDimensionSummary(ByVal dataMatrix As Variant, ByVal keyCol
         outputRow = outputRow + 1
         Set detail = stats(keys(keyIndex))
         result(outputRow, 1) = keys(keyIndex)
-        result(outputRow, 2) = detail("Rows")
-        result(outputRow, 3) = detail("Jobs").Count
-        result(outputRow, 4) = NzNumber(detail("Estimated"))
-        result(outputRow, 5) = NzNumber(detail("Actual"))
-        result(outputRow, 6) = NzNumber(detail("Variance"))
+        result(outputRow, 2) = detail("Jobs").Count
+        result(outputRow, 3) = NzNumber(detail("Estimated"))
+        result(outputRow, 4) = NzNumber(detail("Actual"))
+        result(outputRow, 5) = NzNumber(detail("Actual")) - NzNumber(detail("Estimated"))
+        result(outputRow, 6) = PackingPercentage(NzNumber(detail("Actual")), NzNumber(detail("Estimated")))
     Next keyIndex
 
     BuildDimensionSummary = result
+End Function
+
+Public Function PackingPercentage(ByVal actualMinutes As Double, ByVal estimatedMinutes As Double) As Variant
+    If estimatedMinutes > 0 Then
+        PackingPercentage = (actualMinutes - estimatedMinutes) / estimatedMinutes
+    Else
+        PackingPercentage = "N/A"
+    End If
+End Function
+
+Private Sub ApplySummaryJobComments(ByVal tableName As String, ByVal dataMatrix As Variant, ByVal dimensionColumn As Long)
+    Dim lo As ListObject
+    Dim summaryRow As Long
+    Dim dataRow As Long
+    Dim columnIndex As Long
+    Dim groupName As String
+    Dim jobId As String
+    Dim jobs As Object
+    Dim jobKey As Variant
+    Dim jobHours As Variant
+    Dim auditText As String
+    Dim baseText As String
+    Dim valueText As String
+    Dim formulas As Variant
+
+    Set lo = EnsureWorksheet(SHEET_DASHBOARD).ListObjects(tableName)
+    If lo.DataBodyRange Is Nothing Then Exit Sub
+    ClearRangeComments lo.DataBodyRange
+    formulas = Array("Jobs included in the active filters.", "Unique Job ID count.", _
+        "Sum of allocated estimated hours.", "Sum of actual hours.", _
+        "Actual hours - allocated estimated hours.", _
+        "(Actual hours - allocated estimated hours)" & vbLf & _
+        "         / allocated estimated hours." & vbLf & _
+        "Negative = under; positive = over; 0% = on estimate." & vbLf & _
+        "N/A = no positive estimate.")
+
+    For summaryRow = 1 To lo.ListRows.Count
+        groupName = NzText(lo.DataBodyRange.Cells(summaryRow, 1).Value)
+        Set jobs = CreateObject("Scripting.Dictionary")
+        For dataRow = 1 To MatrixRowCount(dataMatrix)
+            If NzText(dataMatrix(dataRow, dimensionColumn), "(Blank)") = groupName Then
+                jobId = NzText(dataMatrix(dataRow, 1), "(No Job ID)")
+                If jobs.Exists(jobId) Then
+                    jobHours = jobs(jobId)
+                Else
+                    jobHours = Array(0#, 0#)
+                End If
+                jobHours(0) = jobHours(0) + NzNumber(dataMatrix(dataRow, 10)) / 60#
+                jobHours(1) = jobHours(1) + NzNumber(dataMatrix(dataRow, 11)) / 60#
+                jobs(jobId) = jobHours
+            End If
+        Next dataRow
+        auditText = PackingAuditLine("Job ID", "Est Hrs", "Act Hrs", "Var Hrs", "Var %")
+        For Each jobKey In jobs.Keys
+            jobHours = jobs(jobKey)
+            valueText = "N/A"
+            If jobHours(0) > 0 Then valueText = Format$(PackingPercentage(jobHours(1), jobHours(0)), "+0.00%;-0.00%;0.00%")
+            auditText = auditText & vbLf & PackingAuditLine(CStr(jobKey), _
+                Format$(jobHours(0), "0.00"), Format$(jobHours(1), "0.00"), _
+                Format$(jobHours(1) - jobHours(0), "0.00"), valueText)
+        Next jobKey
+        For columnIndex = 1 To lo.ListColumns.Count
+            valueText = NzText(lo.DataBodyRange.Cells(summaryRow, columnIndex).Value)
+            If columnIndex >= 3 And columnIndex <= 5 Then valueText = Format$(lo.DataBodyRange.Cells(summaryRow, columnIndex).Value, "0.00")
+            If columnIndex = 6 And IsNumeric(lo.DataBodyRange.Cells(summaryRow, columnIndex).Value) Then valueText = Format$(lo.DataBodyRange.Cells(summaryRow, columnIndex).Value, "+0.00%;-0.00%;0.00%")
+            baseText = lo.HeaderRowRange.Cells(1, columnIndex).Value & vbLf & groupName & vbLf & _
+                "Formula: " & formulas(columnIndex - 1) & vbLf & "Displayed value: " & valueText & vbLf & _
+                "Estimates allocated by share of job time," & vbLf & _
+                "not independent employee budgets." & vbLf & vbLf & _
+                "Jobs included (active filters):" & vbLf & auditText
+            SetCellComment lo.DataBodyRange.Cells(summaryRow, columnIndex), baseText
+            With lo.DataBodyRange.Cells(summaryRow, columnIndex).Comment.Shape.TextFrame
+                .Characters.Font.Name = "Courier New"
+                .AutoSize = True
+            End With
+        Next columnIndex
+    Next summaryRow
+End Sub
+
+Private Function PackingAuditLine(ByVal jobId As String, ByVal estimated As String, ByVal actual As String, ByVal variance As String, ByVal percentage As String) As String
+    PackingAuditLine = jobId & Space$(Application.Max(1, 14 - Len(jobId))) & _
+        Space$(Application.Max(0, 10 - Len(estimated))) & estimated & " " & _
+        Space$(Application.Max(0, 10 - Len(actual))) & actual & " " & _
+        Space$(Application.Max(0, 10 - Len(variance))) & variance & " " & _
+        Space$(Application.Max(0, 10 - Len(percentage))) & percentage
 End Function
 
 Private Function SortSummaryKeysByActualHours(ByVal stats As Object) As String()

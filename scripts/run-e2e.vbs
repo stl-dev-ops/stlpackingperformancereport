@@ -12,6 +12,8 @@ Dim logPath
 Dim layoutAuditPath
 Dim builtWorkbookPath
 Dim dialogWatchCommand
+Dim failureCount
+Dim tooltipCell
 
 Set shell = CreateObject("WScript.Shell")
 Set fso = CreateObject("Scripting.FileSystemObject")
@@ -20,7 +22,7 @@ artifactsRoot = "C:\dev\STLPackingPerformanceReport\artifacts"
 exportRoot = artifactsRoot & "\e2e"
 logPath = exportRoot & "\run-e2e.log"
 layoutAuditPath = exportRoot & "\dashboard-layout-audit.csv"
-builtWorkbookPath = "C:\dev\STLPackingPerformanceReport\PackingEstimatedVsActualReport.xlsm"
+builtWorkbookPath = "C:\dev\STLPackingPerformanceReport\STLPackingPerformanceReport.xlsm"
 dialogWatchCommand = "powershell -NoProfile -ExecutionPolicy Bypass -File ""C:\dev\STLPackingPerformanceReport\scripts\watch-excel-dialogs.ps1"" -OutputPath ""C:\dev\STLPackingPerformanceReport\artifacts\e2e\dialog-watch.log"" -TimeoutSeconds 240"
 
 EnsureFolder artifactsRoot
@@ -46,14 +48,33 @@ runId = InvokeAction(xl, wb, "new-run-id", "e2e", "")
 WriteLog "Run ID: " & runId
 
 RecordPass wb, runId, "Workbook opens", "Open workbook and initialize", "Workbook opened for automation"
+AssertTrue wb, runId, "Branding", "Workbook filename matches", wb.Name = "STLPackingPerformanceReport.xlsm", "Workbook should use the new filename"
+AssertTrue wb, runId, "Branding", "Dashboard title matches", CStr(wsDash.Range("B2").Value) = "Packing Performance Report", "Sheet title bar should use the display title"
+AssertTrue wb, runId, "Branding", "Current variance build loaded", wsDash.ListObjects("tblEmployeeSummary").ListColumns.Count = 6 And wsDash.ListObjects("tblEmployeeSummary").HeaderRowRange.Cells(1, 6).Value = "Variance %", "Six columns with variance percentage and no row count"
+AssertTrue wb, runId, "Percentage edge cases", "Zero actual is minus 100 percent", CDbl(xl.Run(WorkbookMacro(wb, "modReportMain.PackingPercentage"), 0, 60)) = -1, "Zero actual must be 100 percent under estimate"
+AssertTrue wb, runId, "Percentage edge cases", "Under estimate is negative", CDbl(xl.Run(WorkbookMacro(wb, "modReportMain.PackingPercentage"), 45, 60)) = -0.25, "45 actual versus 60 estimated is -25 percent"
+AssertTrue wb, runId, "Percentage edge cases", "Over estimate is positive", CDbl(xl.Run(WorkbookMacro(wb, "modReportMain.PackingPercentage"), 75, 60)) = 0.25, "75 actual versus 60 estimated is +25 percent"
+AssertTrue wb, runId, "Percentage edge cases", "On estimate is zero", CDbl(xl.Run(WorkbookMacro(wb, "modReportMain.PackingPercentage"), 60, 60)) = 0, "On estimate is 0 percent"
+AssertTrue wb, runId, "Percentage edge cases", "Zero estimate is N/A", CStr(xl.Run(WorkbookMacro(wb, "modReportMain.PackingPercentage"), 60, 0)) = "N/A", "Cannot divide by zero or display a misleading zero percent"
+AssertContains wb, runId, "Startup refresh", "Refresh completes automatically on open", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestDashboardStatus"))), "Refresh complete:", "Workbook_Open must refresh without an explicit automation refresh action"
+AssertTrue wb, runId, "Startup refresh", "Startup query is logged", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestTableRowCount"), "Query Log", "tblQueryLog")) > 0, "Startup must execute and log a query"
+AssertTrue wb, runId, "Startup refresh", "Startup dashboard grid is populated", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestTableRowCount"), "Dashboard", "tblDashboardDetail")) > 0, "Default Shipping and last-week filters should populate the dashboard on open"
+AssertTrue wb, runId, "Startup refresh", "Startup grid remains aligned", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestDashboardGridAligned"))), "Startup refresh must preserve merged KPI/grid boundaries"
 AssertContains wb, runId, "Workbook opens", "Dashboard sheet active on open", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestCurrentSheetName"))), "Dashboard", "Workbook should open on Dashboard"
+AssertContains wb, runId, "Workbook opens", "Dashboard top cell selected on open", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestActiveCellAddress"))), "B2", "Workbook should open at the top of Dashboard"
+AssertTrue wb, runId, "Workbook opens", "Dashboard scroll row reset on open", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestActiveWindowScrollRow"))) = 1, "Dashboard should open scrolled to row 1"
+AssertTrue wb, runId, "Workbook opens", "Dashboard scroll column reset on open", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestActiveWindowScrollColumn"))) = 1, "Dashboard should open scrolled to column 1"
 RecordActionResult wb, runId, "Initialize", "InitializeReportWorkbook", InvokeAction(xl, wb, "initialize", "", ""), "Workbook initializer completed"
 AssertContains wb, runId, "Initialize", "Dashboard sheet active after initialize", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestCurrentSheetName"))), "Dashboard", "Initializer should leave workbook on Dashboard"
+AssertContains wb, runId, "Initialize", "Dashboard top cell selected after initialize", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestActiveCellAddress"))), "B2", "Initializer should leave Dashboard focused at the top"
 
 AssertTrue wb, runId, "Dashboard controls", "Estimate-from button exists", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "ppr_btnEstimateDateFrom")), "Estimate-from button should render"
 AssertTrue wb, runId, "Dashboard controls", "Refresh button exists", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "ppr_btnRefresh")), "Refresh button should render"
-AssertTrue wb, runId, "Dashboard controls", "KPI comment exists", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestCommentExists"), "Dashboard", "B17")), "KPI tooltip comment should exist"
+AssertTrue wb, runId, "Dashboard controls", "KPI comment exists", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestCommentExists"), "Dashboard", "B11")), "KPI tooltip comment should exist"
 AssertTrue wb, runId, "Dashboard controls", "Customer button exists", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "ppr_btnCustomerFilter")), "Customer picker button should render"
+AssertContains wb, runId, "Dashboard defaults", "Actual-from button shows default date", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeText"), "Dashboard", "ppr_btnActualDateFrom")), "Act From", "Dashboard should render actual date defaults on the button"
+AssertTrue wb, runId, "Dashboard defaults", "Actual-from button is not Any", InStr(1, CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeText"), "Dashboard", "ppr_btnActualDateFrom")), "Any", vbTextCompare) = 0, "Dashboard should default actual-from away from Any"
+AssertContains wb, runId, "Dashboard defaults", "Work center default button caption", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeText"), "Dashboard", "ppr_btnWorkCenterFilter")), "3 Work Centers", "Dashboard should default to shipping work centers"
 
 RecordActionResult wb, runId, "Date picker", "Open estimate-from picker", InvokeAction(xl, wb, "open-estimate-from", "", ""), "Opened donor-style calendar"
 AssertTrue wb, runId, "Date picker", "Calendar popup created", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "pprCal_bg")), "Calendar should render"
@@ -102,9 +123,13 @@ RecordActionResult wb, runId, "Filters", "Set employee filter", InvokeAction(xl,
 
 RecordActionResult wb, runId, "Refresh", "Refresh report", InvokeAction(xl, wb, "refresh", "", ""), CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestDashboardStatus")))
 AssertTrue wb, runId, "Refresh", "Packing detail rows present", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestTableRowCount"), "Packing Detail", "tblPackingDetail")) > 0, "Full-range refresh should load detail rows"
+AssertTrue wb, runId, "Refresh", "Dashboard detail rows present", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestTableRowCount"), "Dashboard", "tblDashboardDetail")) > 0, "Dashboard data grid should populate"
+AssertTrue wb, runId, "Refresh", "Grid cells match KPI boundaries", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestDashboardGridAligned"))), "All seven headers and data columns must share KPI left edges and widths"
+AssertPackingMath wb, runId, "Full-range math"
 
 RecordActionResult wb, runId, "Picker workflow", "Clear filters for subset workflow", InvokeAction(xl, wb, "clear-filters", "", ""), "Reset filter state"
-AssertTrue wb, runId, "Picker workflow", "Work center filter cleared", Len(CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestConfigText"), "cfgWorkCenterLike"))) = 0, "Work center filter should be cleared"
+AssertContains wb, runId, "Picker workflow", "Work center filter reset to defaults", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestConfigText"), "cfgWorkCenterLike")), "Shipping", "Work center defaults should be restored"
+AssertContains wb, runId, "Picker workflow", "Work center button reset to defaults", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeText"), "Dashboard", "ppr_btnWorkCenterFilter")), "3 Work Centers", "Work center button should reflect restored defaults"
 RecordActionResult wb, runId, "Picker workflow", "Set actual week for subset workflow", InvokeAction(xl, wb, "set-actual-range", "2026-09-20", "2026-09-26"), "Applied known row-producing week"
 RecordActionResult wb, runId, "Picker workflow", "Open work center picker", InvokeAction(xl, wb, "open-workcenter", "", ""), "Opened work center picker"
 AssertTrue wb, runId, "Picker workflow", "Work center popup created", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeExists"), "Dashboard", "pprVal_bg")), "Work center picker should render"
@@ -115,30 +140,52 @@ RecordActionResult wb, runId, "Picker workflow", "Apply Shipping work centers", 
 AssertContains wb, runId, "Picker workflow", "Work center config contains Shipping", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestConfigText"), "cfgWorkCenterLike")), "Shipping", "Picker should store selected work centers"
 RecordActionResult wb, runId, "Picker workflow", "Refresh with Shipping work centers", InvokeAction(xl, wb, "refresh", "", ""), CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestDashboardStatus")))
 AssertTrue wb, runId, "Picker workflow", "Shipping subset returns rows", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestTableRowCount"), "Packing Detail", "tblPackingDetail")) > 0, "Shipping work centers in the known week should return detail rows"
-AssertTrue wb, runId, "Picker workflow", "Distinct jobs KPI updates for Shipping subset", CDbl(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestKpiNumericValue"), "B17")) > 0, "Distinct jobs KPI should be non-zero for Shipping subset"
-AssertTrue wb, runId, "Picker workflow", "Actual hours KPI updates for Shipping subset", CDbl(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestKpiNumericValue"), "H17")) > 0, "Actual hours KPI should be non-zero for Shipping subset"
+AssertTrue wb, runId, "Picker workflow", "Distinct jobs KPI updates for Shipping subset", CDbl(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestKpiNumericValue"), "B11")) > 0, "Distinct jobs KPI should be non-zero for Shipping subset"
+AssertTrue wb, runId, "Picker workflow", "Actual hours KPI updates for Shipping subset", CDbl(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestKpiNumericValue"), "H11")) > 0, "Actual hours KPI should be non-zero for Shipping subset"
+AssertTrue wb, runId, "Picker workflow", "Dashboard detail subset rows present", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestTableRowCount"), "Dashboard", "tblDashboardDetail")) > 0, "Dashboard detail grid should populate for Shipping subset"
+AssertTrue wb, runId, "Picker workflow", "Subset grid cells match KPI boundaries", CBool(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestDashboardGridAligned"))), "Merged grid cells must remain aligned after subset refresh"
 AssertTrue wb, runId, "Picker workflow", "Work center summary has rows", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestTableRowCount"), "Dashboard", "tblWorkCenterSummary")) > 0, "Work center summary should populate for Shipping subset"
 AssertTrue wb, runId, "Picker workflow", "Employee summary has rows", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestTableRowCount"), "Dashboard", "tblEmployeeSummary")) > 0, "Employee summary should populate for Shipping subset"
+AssertTrue wb, runId, "Scoreboard headers", "Work center header contrast", wsDash.ListObjects("tblWorkCenterSummary").HeaderRowRange.Font.Color = RGB(255, 255, 255) And wsDash.ListObjects("tblWorkCenterSummary").HeaderRowRange.Interior.Color = wsDash.Range("B2").Interior.Color, "White header text must have the solid dark title background"
+AssertTrue wb, runId, "Scoreboard headers", "Employee header contrast", wsDash.ListObjects("tblEmployeeSummary").HeaderRowRange.Font.Color = RGB(255, 255, 255) And wsDash.ListObjects("tblEmployeeSummary").HeaderRowRange.Interior.Color = wsDash.Range("B2").Interior.Color, "White header text must have the solid dark title background"
+AssertPackingMath wb, runId, "Shipping subset math"
 
 RecordActionResult wb, runId, "Reset workflow", "Clear filters after subset workflow", InvokeAction(xl, wb, "clear-filters", "", ""), "Returned dashboard to unfiltered state"
-AssertContains wb, runId, "Reset workflow", "Active filter caption reset", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestCellText"), "Dashboard", "B26")), "Work Center: Any", "Active filter panel should show cleared work center filter"
+AssertContains wb, runId, "Reset workflow", "Work center button reset", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeText"), "Dashboard", "ppr_btnWorkCenterFilter")), "3 Work Centers", "Work center button should show restored default work center filter"
+AssertContains wb, runId, "Reset workflow", "Actual date defaults restored", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestShapeText"), "Dashboard", "ppr_btnActualDateFrom")), "Act From", "Actual date default should remain visible on the button"
+RecordActionResult wb, runId, "Reset workflow", "Refresh restored defaults", InvokeAction(xl, wb, "refresh", "", ""), "Saved data must match the restored default filter captions"
+AssertPackingMath wb, runId, "Default-filter math"
 RecordActionResult wb, runId, "Reset workflow", "Return to dashboard before save", InvokeAction(xl, wb, "goto-dashboard", "", ""), "Ensure workbook ends on dashboard"
+AssertContains wb, runId, "Reset workflow", "Dashboard top cell selected before save", CStr(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestActiveCellAddress"))), "B2", "Dashboard should end focused at the top"
 
 wb.Save
-CaptureSheetWindowPng xl, wb.Worksheets("Dashboard"), exportRoot & "\dashboard.png"
-CaptureSheetWindowPng xl, wb.Worksheets("Packing Detail"), exportRoot & "\packing-detail.png"
-CaptureSheetWindowPng xl, wb.Worksheets("Query Log"), exportRoot & "\query-log.png"
+CaptureSheetWindowPng xl, wb.Worksheets("Dashboard"), exportRoot & "\dashboard.png", 1
+CaptureSheetWindowPng xl, wb.Worksheets("Dashboard"), exportRoot & "\scoreboards.png", 29
+Set tooltipCell = wsDash.ListObjects("tblEmployeeSummary").DataBodyRange.Cells(1, 6)
+tooltipCell.Comment.Shape.Left = wsDash.Range("J36").Left
+tooltipCell.Comment.Shape.Top = wsDash.Range("J36").Top
+tooltipCell.Comment.Visible = True
+CaptureSheetWindowPng xl, wb.Worksheets("Dashboard"), exportRoot & "\scoreboard-tooltip.png", 29
+tooltipCell.Comment.Visible = False
+CaptureSheetWindowPng xl, wb.Worksheets("Packing Detail"), exportRoot & "\packing-detail.png", 1
+CaptureSheetWindowPng xl, wb.Worksheets("Query Log"), exportRoot & "\query-log.png", 1
 WriteDashboardLayoutAudit wb.Worksheets("Dashboard"), layoutAuditPath, wb, runId
+AssertTrue wb, runId, "Visual audit", "Dashboard layout issue count is zero", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestDashboardLayoutIssueCount"))) = 0, "Dashboard layout should have no audited overlaps"
 
 AssertTrue wb, runId, "Logging", "Interaction log populated", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestTableRowCount"), "Interaction Log", "tblInteractionLog")) > 0, "Interaction log should have entries"
 AssertTrue wb, runId, "Logging", "Query log populated", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestTableRowCount"), "Query Log", "tblQueryLog")) > 0, "Query log should have entries"
 AssertTrue wb, runId, "Logging", "Test results populated", CLng(xl.Run(WorkbookMacro(wb, "modAutomationSupport.TestTableRowCount"), "Test Results", "tblTestResults")) > 0, "Test results should have entries"
 
+RecordActionResult wb, runId, "Save workflow", "Restore dashboard after screenshots", InvokeAction(xl, wb, "goto-dashboard", "", ""), "Final saved view must be Dashboard at the top"
 wb.Save
 wb.Close False
 xl.Quit
 
 WriteLog "E2E completed"
+If failureCount > 0 Then
+    WScript.Echo "FAIL:" & failureCount & " assertions; see " & logPath
+    WScript.Quit 1
+End If
 WScript.Echo "OK:" & exportRoot
 
 Function InvokeAction(excelApp, workbookObj, actionName, arg1, arg2)
@@ -146,6 +193,122 @@ Function InvokeAction(excelApp, workbookObj, actionName, arg1, arg2)
     Err.Clear
     InvokeAction = CStr(excelApp.Run(WorkbookMacro(workbookObj, "modAutomationSupport.AutomationInvoke"), actionName, arg1, arg2))
     If Err.Number <> 0 Then InvokeAction = "ERR:" & Err.Number & ":" & Err.Description
+End Function
+
+Sub AssertPackingMath(workbookObj, currentRunId, scenarioName)
+    Dim detailTable, summaryTable, dashboard, rowIndex, summaryIndex
+    Dim estimated, actual, variance, groupEstimated, groupActual
+    Dim groupKey, dimensionColumn, tableName, percentValue
+    Dim detailValues, summaryValues, detailValid
+    Set dashboard = workbookObj.Worksheets("Dashboard")
+    Set detailTable = workbookObj.Worksheets("Packing Detail").ListObjects("tblPackingDetail")
+    detailValues = detailTable.DataBodyRange.Value
+    detailValid = True
+    estimated = 0
+    actual = 0
+    For rowIndex = 1 To UBound(detailValues, 1)
+        estimated = estimated + MathNumber(detailValues(rowIndex, 10))
+        actual = actual + MathNumber(detailValues(rowIndex, 11))
+        variance = MathNumber(detailValues(rowIndex, 14))
+        If Abs(variance - (MathNumber(detailValues(rowIndex, 11)) - MathNumber(detailValues(rowIndex, 10)))) >= 0.001 Then detailValid = False
+    Next
+    AssertTrue workbookObj, currentRunId, scenarioName, "Every detail variance reconciles", detailValid, "Row variance must equal row actual minus allocated estimate across all detail rows"
+    AssertTrue workbookObj, currentRunId, scenarioName, "KPI estimate covers all rows", Abs(CDbl(xl.Run(WorkbookMacro(workbookObj, "modAutomationSupport.TestKpiNumericValue"), "F11")) - estimated / 60) < 0.011, "Estimate must use the full detail dataset"
+    AssertTrue workbookObj, currentRunId, scenarioName, "KPI actual covers all rows", Abs(CDbl(xl.Run(WorkbookMacro(workbookObj, "modAutomationSupport.TestKpiNumericValue"), "H11")) - actual / 60) < 0.011, "Actual must use the full detail dataset"
+    AssertTrue workbookObj, currentRunId, scenarioName, "KPI variance reconciles", Abs(CDbl(xl.Run(WorkbookMacro(workbookObj, "modAutomationSupport.TestKpiNumericValue"), "J11")) - (actual - estimated) / 60) < 0.011, "Variance = total actual - total allocated estimate"
+    If estimated > 0 Then
+        AssertTrue workbookObj, currentRunId, scenarioName, "KPI weighted percentage", Abs(CDbl(xl.Run(WorkbookMacro(workbookObj, "modAutomationSupport.TestKpiNumericValue"), "N11")) - (actual - estimated) / estimated * 100) < 0.011, "Variance percentage = all-row variance / all-row estimate, not average row percentages"
+    End If
+    For Each tableName In Array("tblWorkCenterSummary", "tblEmployeeSummary")
+        Set summaryTable = dashboard.ListObjects(tableName)
+        summaryValues = summaryTable.DataBodyRange.Value
+        dimensionColumn = 8
+        If tableName = "tblEmployeeSummary" Then dimensionColumn = 9
+        For summaryIndex = 1 To UBound(summaryValues, 1)
+            groupKey = CStr(summaryValues(summaryIndex, 1))
+            groupEstimated = 0
+            groupActual = 0
+            For rowIndex = 1 To UBound(detailValues, 1)
+                If CStr(detailValues(rowIndex, dimensionColumn)) = groupKey Or (groupKey = "(Blank)" And Len(CStr(detailValues(rowIndex, dimensionColumn))) = 0) Then
+                    groupEstimated = groupEstimated + MathNumber(detailValues(rowIndex, 10)) / 60
+                    groupActual = groupActual + MathNumber(detailValues(rowIndex, 11)) / 60
+                End If
+            Next
+            AssertTrue workbookObj, currentRunId, scenarioName, tableName & " totals " & groupKey, Abs(CDbl(summaryValues(summaryIndex, 3)) - groupEstimated) < 0.001 And Abs(CDbl(summaryValues(summaryIndex, 4)) - groupActual) < 0.001 And Abs(CDbl(summaryValues(summaryIndex, 5)) - (groupActual - groupEstimated)) < 0.001, "Group hours and variance must reconcile to detail"
+            percentValue = summaryValues(summaryIndex, 6)
+            If groupEstimated > 0 Then
+                AssertTrue workbookObj, currentRunId, scenarioName, tableName & " percentage " & groupKey, Abs(CDbl(percentValue) - (groupActual - groupEstimated) / groupEstimated) < 0.000001 And summaryTable.DataBodyRange.Cells(summaryIndex, 6).NumberFormat = "+0.00%;-0.00%;0.00%", "Group weighted variance percentage with signed formatting"
+            Else
+                AssertTrue workbookObj, currentRunId, scenarioName, tableName & " no estimate " & groupKey, CStr(percentValue) = "N/A", "Missing estimate must not show a misleading zero percent"
+            End If
+        Next
+    Next
+    AssertSummaryJobTooltips workbookObj, currentRunId, scenarioName, detailValues
+End Sub
+
+Sub AssertSummaryJobTooltips(workbookObj, currentRunId, scenarioName, detailValues)
+    Dim tableName, summaryTable, summaryValues, dimensionColumn, summaryRow, dataRow, columnIndex
+    Dim groupKey, expectedJobs, jobId, jobKey, jobHours, tooltipText, auditParts, auditLines, auditRow, auditJob
+    Dim jobListValid, commentsValid, auditText, seenJobs
+    For Each tableName In Array("tblWorkCenterSummary", "tblEmployeeSummary")
+        Set summaryTable = workbookObj.Worksheets("Dashboard").ListObjects(tableName)
+        summaryValues = summaryTable.DataBodyRange.Value
+        dimensionColumn = 8
+        If tableName = "tblEmployeeSummary" Then dimensionColumn = 9
+        AssertTrue workbookObj, currentRunId, scenarioName, tableName & " no row count", summaryTable.ListColumns.Count = 6 And CStr(summaryTable.HeaderRowRange.Cells(1, 2).Value) = "Jobs", "Scoreboard must omit row count"
+        For summaryRow = 1 To UBound(summaryValues, 1)
+            groupKey = CStr(summaryValues(summaryRow, 1))
+            Set expectedJobs = CreateObject("Scripting.Dictionary")
+            For dataRow = 1 To UBound(detailValues, 1)
+                If CStr(detailValues(dataRow, dimensionColumn)) = groupKey Or (groupKey = "(Blank)" And Len(CStr(detailValues(dataRow, dimensionColumn))) = 0) Then
+                    jobId = CStr(detailValues(dataRow, 1))
+                    If Len(jobId) = 0 Then jobId = "(No Job ID)"
+                    jobHours = Array(0, 0)
+                    If expectedJobs.Exists(jobId) Then jobHours = expectedJobs(jobId)
+                    jobHours(0) = jobHours(0) + MathNumber(detailValues(dataRow, 10)) / 60
+                    jobHours(1) = jobHours(1) + MathNumber(detailValues(dataRow, 11)) / 60
+                    expectedJobs(jobId) = jobHours
+                End If
+            Next
+            commentsValid = True
+            auditText = ""
+            For columnIndex = 1 To 6
+                tooltipText = ""
+                Err.Clear
+                tooltipText = summaryTable.DataBodyRange.Cells(summaryRow, columnIndex).Comment.Text
+                If Err.Number <> 0 Or InStr(tooltipText, "Formula:") = 0 Or InStr(tooltipText, "Displayed value:") = 0 Then commentsValid = False
+                auditParts = Split(tooltipText, "Jobs included (active filters):" & vbLf)
+                If UBound(auditParts) <> 1 Then
+                    commentsValid = False
+                Else
+                    If columnIndex = 1 Then auditText = auditParts(1)
+                    If auditParts(1) <> auditText Then commentsValid = False
+                End If
+            Next
+            jobListValid = commentsValid
+            Set seenJobs = CreateObject("Scripting.Dictionary")
+            auditLines = Split(auditText, vbLf)
+            For auditRow = 1 To UBound(auditLines)
+                auditJob = Trim(Left(auditLines(auditRow), 14))
+                If Not expectedJobs.Exists(auditJob) Or seenJobs.Exists(auditJob) Then
+                    jobListValid = False
+                Else
+                    seenJobs(auditJob) = True
+                    jobHours = expectedJobs(auditJob)
+                    If Abs(CDbl(Trim(Mid(auditLines(auditRow), 15, 10))) - jobHours(0)) >= 0.011 Then jobListValid = False
+                    If Abs(CDbl(Trim(Mid(auditLines(auditRow), 26, 10))) - jobHours(1)) >= 0.011 Then jobListValid = False
+                    If Abs(CDbl(Trim(Mid(auditLines(auditRow), 37, 10))) - (jobHours(1) - jobHours(0))) >= 0.011 Then jobListValid = False
+                End If
+            Next
+            If seenJobs.Count <> expectedJobs.Count Then jobListValid = False
+            AssertTrue workbookObj, currentRunId, scenarioName, tableName & " job tooltips " & groupKey, jobListValid, "All six cells must list exactly the filtered group's jobs once, with reconcilable per-job hours and formula context"
+        Next
+    Next
+End Sub
+
+Function MathNumber(value)
+    MathNumber = 0
+    If IsNumeric(value) Then MathNumber = CDbl(value)
 End Function
 
 Sub RecordActionResult(workbookObj, currentRunId, scenarioName, stepName, actionResult, details)
@@ -180,15 +343,16 @@ End Sub
 
 Sub RecordFail(workbookObj, currentRunId, scenarioName, stepName, details)
     On Error Resume Next
+    failureCount = failureCount + 1
     workbookObj.Application.Run WorkbookMacro(workbookObj, "modInteractionLogging.AppendTestResult"), currentRunId, scenarioName, stepName, False, details, ""
     WriteLog "FAIL | " & scenarioName & " | " & stepName & " | " & details
 End Sub
 
-Sub CaptureSheetWindowPng(excelApp, sheetObj, outputPath)
+Sub CaptureSheetWindowPng(excelApp, sheetObj, outputPath, scrollRow)
     Dim commandText
     On Error Resume Next
     sheetObj.Activate
-    excelApp.ActiveWindow.ScrollRow = 1
+    excelApp.ActiveWindow.ScrollRow = scrollRow
     excelApp.ActiveWindow.ScrollColumn = 1
     excelApp.ActiveWindow.Zoom = 90
     commandText = "powershell -NoProfile -ExecutionPolicy Bypass -File ""C:\dev\STLPackingPerformanceReport\scripts\capture-excel-window.ps1"" -WindowHandle " & CStr(excelApp.Hwnd) & " -OutputPath """ & outputPath & """"
@@ -201,6 +365,8 @@ Sub WriteDashboardLayoutAudit(sheetObj, outputPath, workbookObj, currentRunId)
     Dim j
     Dim shpA
     Dim shpB
+    Dim loA
+    Dim loB
     Dim issueCount
 
     On Error Resume Next
@@ -209,7 +375,7 @@ Sub WriteDashboardLayoutAudit(sheetObj, outputPath, workbookObj, currentRunId)
 
     For i = 1 To sheetObj.Shapes.Count
         Set shpA = sheetObj.Shapes(i)
-        If Left(LCase(shpA.Name), 7) = "ppr_btn" Then
+        If IsAuditedDashboardShape(shpA) Then
             If shpA.Width < 72 Or shpA.Height < 20 Then
                 ts.WriteLine "undersized," & shpA.Name & ",," & shpA.Width & "x" & shpA.Height
                 issueCount = issueCount + 1
@@ -219,26 +385,68 @@ Sub WriteDashboardLayoutAudit(sheetObj, outputPath, workbookObj, currentRunId)
 
     For i = 1 To sheetObj.Shapes.Count
         Set shpA = sheetObj.Shapes(i)
-        If Left(LCase(shpA.Name), 7) = "ppr_btn" Then
+        If IsAuditedDashboardShape(shpA) Then
             For j = i + 1 To sheetObj.Shapes.Count
                 Set shpB = sheetObj.Shapes(j)
-                If Left(LCase(shpB.Name), 7) = "ppr_btn" Then
+                If IsAuditedDashboardShape(shpB) Then
                     If RectanglesOverlap(shpA, shpB) Then
-                        ts.WriteLine "overlap," & shpA.Name & "," & shpB.Name & ",Buttons overlap"
+                        ts.WriteLine "shape_overlap," & shpA.Name & "," & shpB.Name & ",Dashboard shapes overlap"
                         issueCount = issueCount + 1
                     End If
+                End If
+            Next
+
+            For Each loA In sheetObj.ListObjects
+                If ShapeOverlapsListObject(shpA, loA) Then
+                    ts.WriteLine "shape_table_overlap," & shpA.Name & "," & loA.Name & ",Shape overlaps dashboard table"
+                    issueCount = issueCount + 1
                 End If
             Next
         End If
     Next
 
+    For i = 1 To sheetObj.ListObjects.Count
+        Set loA = sheetObj.ListObjects(i)
+        For j = i + 1 To sheetObj.ListObjects.Count
+            Set loB = sheetObj.ListObjects(j)
+            If TableRangesOverlap(loA, loB) Then
+                ts.WriteLine "table_overlap," & loA.Name & "," & loB.Name & ",Dashboard tables overlap"
+                issueCount = issueCount + 1
+            End If
+        Next
+    Next
+
     ts.Close
     If issueCount = 0 Then
-        RecordPass workbookObj, currentRunId, "Visual audit", "Dashboard layout audit", "No button overlap issues detected"
+        RecordPass workbookObj, currentRunId, "Visual audit", "Dashboard layout audit", "No audited shape or table overlap issues detected"
     Else
         RecordFail workbookObj, currentRunId, "Visual audit", "Dashboard layout audit", CStr(issueCount) & " issues written to " & outputPath
     End If
 End Sub
+
+Function IsAuditedDashboardShape(shp)
+    IsAuditedDashboardShape = (Left(LCase(CStr(shp.Name)), 7) = "ppr_btn")
+End Function
+
+Function ShapeOverlapsListObject(shp, lo)
+    Dim rng
+    Set rng = lo.Range
+    ShapeOverlapsListObject = Not (shp.Left + shp.Width <= rng.Left Or _
+                                   rng.Left + rng.Width <= shp.Left Or _
+                                   shp.Top + shp.Height <= rng.Top Or _
+                                   rng.Top + rng.Height <= shp.Top)
+End Function
+
+Function TableRangesOverlap(loA, loB)
+    Dim rngA
+    Dim rngB
+    Set rngA = loA.Range
+    Set rngB = loB.Range
+    TableRangesOverlap = Not (rngA.Left + rngA.Width <= rngB.Left Or _
+                              rngB.Left + rngB.Width <= rngA.Left Or _
+                              rngA.Top + rngA.Height <= rngB.Top Or _
+                              rngB.Top + rngB.Height <= rngA.Top)
+End Function
 
 Function RectanglesOverlap(shapeA, shapeB)
     RectanglesOverlap = Not (shapeA.Left + shapeA.Width <= shapeB.Left Or _

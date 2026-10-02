@@ -25,7 +25,7 @@ Public Sub PrepareApplicationForRefresh()
         .EnableEvents = False
         .DisplayAlerts = False
         .Calculation = xlCalculationManual
-        .StatusBar = "Refreshing Packing Estimated vs Actual Report..."
+        .StatusBar = "Refreshing " & REPORT_TITLE & "..."
     End With
 End Sub
 

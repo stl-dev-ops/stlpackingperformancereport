@@ -14,7 +14,8 @@ Dim logPath
 Dim artifactsRoot
 Dim dialogWatchCommand
 
-outPath = "C:\dev\STLPackingPerformanceReport\PackingEstimatedVsActualReport.xlsm"
+outPath = "C:\dev\STLPackingPerformanceReport\STLPackingPerformanceReport.xlsm"
+If WScript.Arguments.Count > 0 Then outPath = WScript.Arguments(0)
 folder = "C:\dev\STLPackingPerformanceReport\vba"
 logPath = "C:\dev\STLPackingPerformanceReport\build-workbook.log"
 artifactsRoot = "C:\dev\STLPackingPerformanceReport\artifacts"

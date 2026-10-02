@@ -2,7 +2,7 @@ Attribute VB_Name = "modReportConfig"
 Option Explicit
 
 Public Const REPORT_VERSION As String = "0.2.0"
-Public Const REPORT_TITLE As String = "Packing Estimated vs Actual Report"
+Public Const REPORT_TITLE As String = "Packing Performance Report"
 
 Public Const SHEET_DASHBOARD As String = "Dashboard"
 Public Const SHEET_CONFIGURATION As String = "Configuration"
@@ -17,6 +17,7 @@ Public Const TABLE_INTERACTION_LOG As String = "tblInteractionLog"
 Public Const TABLE_TEST_RESULTS As String = "tblTestResults"
 Public Const TABLE_WORKCENTER_SUMMARY As String = "tblWorkCenterSummary"
 Public Const TABLE_EMPLOYEE_SUMMARY As String = "tblEmployeeSummary"
+Public Const TABLE_DASHBOARD_DETAIL As String = "tblDashboardDetail"
 
 Public Const NAME_ESTIMATE_DATE_FROM As String = "cfgEstimateDateFrom"
 Public Const NAME_ESTIMATE_DATE_TO As String = "cfgEstimateDateTo"
@@ -180,4 +181,16 @@ Public Function NzNumber(ByVal someValue As Variant, Optional ByVal defaultValue
     Else
         NzNumber = CDbl(someValue)
     End If
+End Function
+
+Public Function MondayOfWeek(ByVal someDate As Date) As Date
+    MondayOfWeek = DateAdd("d", 1 - Weekday(someDate, vbMonday), DateValue(someDate))
+End Function
+
+Public Function LastWeekStartDate() As Date
+    LastWeekStartDate = DateAdd("d", -7, MondayOfWeek(Date))
+End Function
+
+Public Function LastWeekEndDate() As Date
+    LastWeekEndDate = DateAdd("d", -1, MondayOfWeek(Date))
 End Function

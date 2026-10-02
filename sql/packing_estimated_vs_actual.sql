@@ -27,14 +27,16 @@ SELECT
     [Actual Work Date] = v.ActualWorkDate,
     [Work Center] = v.WorkCenterName,
     [Employee] = v.EmployeeName,
-    [Estimated Packing Minutes] = v.EstimatedPackingMinutes,
+    [Estimated Packing Minutes] = allocation.EstimatedMinutes,
     [Actual Packing Minutes] = v.ActualPackingMinutes,
     [Total Actual Packing Minutes] = v.ActualPackingMinutesTotal,
     [Share of Job Actual Time] = v.ActualShareOfJob,
-    [Packing Minutes Variance] = v.PackingMinutesVariance,
-    [Packing Time Ratio] = v.PackingTimeRatio,
+    [Packing Minutes Variance] = ISNULL(v.ActualPackingMinutes, 0) - ISNULL(allocation.EstimatedMinutes, 0),
+    [Variance %] = (ISNULL(v.ActualPackingMinutes, 0) - allocation.EstimatedMinutes) / NULLIF(allocation.EstimatedMinutes, 0),
     [Packing Status] = v.PackingStatus
 FROM dbo.vw_stlPackingEstimatedVsActual AS v
+  CROSS APPLY (SELECT EstimatedMinutes = v.EstimatedPackingMinutes *
+    CASE WHEN v.ActualWorkDate IS NULL THEN 1 ELSE ISNULL(v.ActualShareOfJob, 0) END) AS allocation
 WHERE (@BestDateFrom IS NULL OR v.EstimateDate >= @BestDateFrom)
   AND (@BestDateTo IS NULL OR v.EstimateDate < DATEADD(DAY, 1, @BestDateTo))
   AND (@DeliveryDateFrom IS NULL OR v.DeliveryDate >= @DeliveryDateFrom)
